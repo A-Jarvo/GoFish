@@ -1,14 +1,14 @@
 import numpy as np
 from findiff import FinDiff
-from scipy.integrate import simps
+from scipy.integrate import simpson as simps
 from scipy.interpolate import splrep, splev
 from scipy.linalg.lapack import dgesv
-from quadpy import quad
+
+# from quadpy import quad
 from itertools import combinations_with_replacement
 
 
 def Set_Bait(cosmo, data, BAO_only=False):
-
     # Compute the reconstruction factors for each redshift bin. Has shape len(z)
     recon = compute_recon(cosmo, data)
 
@@ -22,7 +22,6 @@ def Set_Bait(cosmo, data, BAO_only=False):
 
 
 def compute_recon(cosmo, data):
-
     muconst = 0.6
     kconst = 0.14
 
@@ -31,8 +30,8 @@ def compute_recon(cosmo, data):
     r_spline = splrep(nP, r_factor)
 
     recon = np.empty(len(cosmo.z))
-    kaiser_vec = data.bias + cosmo.f * muconst ** 2
-    nbar_comb = np.sum(data.nbar * kaiser_vec ** 2, axis=0)
+    kaiser_vec = data.bias + cosmo.f * muconst**2
+    nbar_comb = np.sum(data.nbar * kaiser_vec**2, axis=0)
     for iz in range(len(cosmo.z)):
         nP_comb = nbar_comb[iz] * splev(kconst, cosmo.pk[iz]) / 0.1734
         if nP_comb <= nP[0]:
@@ -45,7 +44,7 @@ def compute_recon(cosmo, data):
 
 
 def CovRenorm(cov, parameter_means):
-    """ Renormalises a covariance matrix with last 3 entries fsigma8, alpha_perp, alpha_par to last 3 entries
+    """Renormalises a covariance matrix with last 3 entries fsigma8, alpha_perp, alpha_par to last 3 entries
         fsigma8, Da, H. Assumes the input covariance matrix is in exactly this order.
 
     Parameters
@@ -73,7 +72,6 @@ def CovRenorm(cov, parameter_means):
 
 
 def compute_deriv_alphas(cosmo, BAO_only=False):
-
     from scipy.interpolate import RegularGridInterpolator
 
     order = 4
@@ -85,18 +83,25 @@ def compute_deriv_alphas(cosmo, BAO_only=False):
     for i in range(-order, order + 1):
         kinterp = cosmo.k + i * dk
         if BAO_only:
-            pkarray[i + order] = splev(kinterp, cosmo.pk[0]) / splev(kinterp, cosmo.pksmooth[0])
+            pkarray[i + order] = splev(kinterp, cosmo.pk[0]) / splev(
+                kinterp, cosmo.pksmooth[0]
+            )
         else:
             pkarray[i + order] = splev(kinterp, cosmo.pk[0])
     derPk = FinDiff(0, dk, acc=4)(pkarray)[order]
-    derPalpha = [np.outer(derPk * cosmo.k, (mu ** 2 - 1.0)), -np.outer(derPk * cosmo.k, (mu ** 2))]
-    derPalpha_interp = [RegularGridInterpolator([cosmo.k, mu], derPalpha[i]) for i in range(2)]
+    derPalpha = [
+        np.outer(derPk * cosmo.k, (mu**2 - 1.0)),
+        -np.outer(derPk * cosmo.k, (mu**2)),
+    ]
+    derPalpha_interp = [
+        RegularGridInterpolator([cosmo.k, mu], derPalpha[i]) for i in range(2)
+    ]
 
     return derPalpha_interp
 
 
 def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=False):
-    """ Computes the Fisher information on cosmological parameters biases*sigma8, fsigma8, alpha_perp and alpha_par
+    """Computes the Fisher information on cosmological parameters biases*sigma8, fsigma8, alpha_perp and alpha_par
         for a given redshift bin by integrating a separate function (CastNet) over k and mu.
 
     Parameters
@@ -138,7 +143,6 @@ def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=Fa
 
     # Uses Simpson's rule or adaptive quadrature to integrate over all k and mu.
     if GoFast:
-
         # mu and k values for Simpson's rule
         muvec = np.linspace(0.0, 1.0, 100)
         kvec = np.linspace(kmin, kmax, 400)
@@ -146,37 +150,44 @@ def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=Fa
         # 2D integration
         ManyFish = simps(
             simps(
-                CastNet(muvec, kvec, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only), x=muvec, axis=-1
+                CastNet(
+                    muvec, kvec, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only
+                ),
+                x=muvec,
+                axis=-1,
             ),
             x=kvec,
             axis=-1,
         )
 
     else:
+        raise Exception(
+            '"GoFast=False" option needs to be updated. Use GoFast=True to use Simpson\'s rule.'
+        )
         # Integral over mu
-        OneFish = lambda *args: quad(CastNet, 0.0, 1.0, args=args, limit=10000, epsabs=1.0e-6, epsrel=1.0e-6)[
-            0
-        ]
+        # OneFish = lambda *args: quad(
+        #     CastNet, 0.0, 1.0, args=args, limit=10000, epsabs=1.0e-6, epsrel=1.0e-6
+        # )[0]
 
-        # Integral over k
-        ManyFish = quad(
-            OneFish,
-            kmin,
-            kmax,
-            args=(iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only),
-            limit=1000,
-            epsabs=1.0e-5,
-            epsrel=1.0e-5,
-        )[0]
+        # # Integral over k
+        # ManyFish = quad(
+        #     OneFish,
+        #     kmin,
+        #     kmax,
+        #     args=(iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only),
+        #     limit=1000,
+        #     epsabs=1.0e-5,
+        #     epsrel=1.0e-5,
+        # )[0]
 
     # Multiply by the necessary prefactors
-    ManyFish *= cosmo.volume[iz] / (2.0 * np.pi ** 2)
+    ManyFish *= cosmo.volume[iz] / (2.0 * np.pi**2)
 
     return ManyFish
 
 
 def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
-    """ Compute the Fisher matrix for a vector of k and mu at a particular redshift.
+    """Compute the Fisher matrix for a vector of k and mu at a particular redshift.
 
     Parameters
     ----------
@@ -222,13 +233,13 @@ def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
     Shoal = np.empty((npop + 3, npop + 3, len(k), len(mu)))
 
     # Compute the kaiser factors for each galaxy sample at the redshift as a function of mu
-    kaiser = np.tile(data.bias[:, iz], (len(mu), 1)).T + cosmo.f[iz] * mu ** 2
+    kaiser = np.tile(data.bias[:, iz], (len(mu), 1)).T + cosmo.f[iz] * mu**2
 
     # Compute the BAO damping factor parameter after reconstruction at the redshift of interest
     # as a function of k and mu.
-    Dpar = np.outer(mu ** 2, k ** 2) * cosmo.Sigma_par[iz] ** 2
-    Dperp = np.outer(1.0 - mu ** 2, k ** 2) * cosmo.Sigma_perp[iz] ** 2
-    Dfactor = np.exp(-(recon ** 2) * (Dpar + Dperp) / 2.0)
+    Dpar = np.outer(mu**2, k**2) * cosmo.Sigma_par[iz] ** 2
+    Dperp = np.outer(1.0 - mu**2, k**2) * cosmo.Sigma_perp[iz] ** 2
+    Dfactor = np.exp(-(recon**2) * (Dpar + Dperp) / 2.0)
 
     # Use our splines to compute the power spectrum and derivatives at the redshift as a function of k and mu.
     # To save space we only stored the derivatives at redshift 0, but now scale these to the correct redshift
@@ -241,14 +252,14 @@ def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
         derPalphaval = [derPalpha[i](coords).reshape(len(k), len(mu)) for i in range(2)]
     else:
         derPalphaval = [
-            derPalpha[i](coords).reshape(len(k), len(mu)) * (cosmo.sigma8[iz] / cosmo.sigma8[0]) ** 2
+            derPalpha[i](coords).reshape(len(k), len(mu))
+            * (cosmo.sigma8[iz] / cosmo.sigma8[0]) ** 2
             for i in range(2)
         ]
 
     # Loop over each k and mu value and compute the Fisher information for the cosmological parameters
     for i, kval in enumerate(k):
         for j, muval in enumerate(mu):
-
             derP = compute_full_deriv(
                 npop,
                 npk,
@@ -262,15 +273,17 @@ def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
                 BAO_only,
             )
 
-            covP, cov_inv = compute_inv_cov(npop, npk, kaiser[:, j], pkval[i], data.nbar[:, iz])
+            covP, cov_inv = compute_inv_cov(
+                npop, npk, kaiser[:, j], pkval[i], data.nbar[:, iz]
+            )
 
-            Shoal[:, :, i, j] = kval ** 2 * (derP @ cov_inv @ derP.T) * Dfactor[j, i] ** 2
+            Shoal[:, :, i, j] = kval**2 * (derP @ cov_inv @ derP.T) * Dfactor[j, i] ** 2
 
     return Shoal
 
 
 def compute_inv_cov(npop, npk, kaiser, pk, nbar):
-    """ Computes the covariance matrix of the auto and cross-power spectra for a given
+    """Computes the covariance matrix of the auto and cross-power spectra for a given
         k and mu value, as well as its inverse.
 
     Parameters
@@ -325,8 +338,10 @@ def compute_inv_cov(npop, npk, kaiser, pk, nbar):
     return covariance, cov_inv
 
 
-def compute_full_deriv(npop, npk, kaiser, pk, pksmooth, mu, derPalpha, f, sigma8, BAO_only):
-    """ Computes the derivatives of the power spectrum as a function of
+def compute_full_deriv(
+    npop, npk, kaiser, pk, pksmooth, mu, derPalpha, f, sigma8, BAO_only
+):
+    """Computes the derivatives of the power spectrum as a function of
         biases*sigma8, fsigma8, alpha_perp and alpha_par (in that order)
         at a given k, mu and redshift
 
@@ -382,7 +397,9 @@ def compute_full_deriv(npop, npk, kaiser, pk, pksmooth, mu, derPalpha, f, sigma8
 
     # Derivatives of all power spectra w.r.t fsigma8
     derP[npop, :] = [
-        (kaiser[i] + kaiser[j]) * mu ** 2 * pk / sigma8 for i in range(npop) for j in range(i, npop)
+        (kaiser[i] + kaiser[j]) * mu**2 * pk / sigma8
+        for i in range(npop)
+        for j in range(i, npop)
     ]
 
     # Derivatives of all power spectra w.r.t the alphas centred on alpha_per = alpha_par = 1.0
@@ -390,23 +407,29 @@ def compute_full_deriv(npop, npk, kaiser, pk, pksmooth, mu, derPalpha, f, sigma8
         # For BAO_only we only include information on the alpha parameters
         # from the BAO wiggles, and not the Kaiser factor
         derP[npop + 1, :] = [
-            kaiser[i] * kaiser[j] * derPalpha[0] * pksmooth for i in range(npop) for j in range(i, npop)
-        ]
-        derP[npop + 2, :] = [
-            kaiser[i] * kaiser[j] * derPalpha[1] * pksmooth for i in range(npop) for j in range(i, npop)
-        ]
-    else:
-        # Derivative of mu'**2 w.r.t alpha_perp. Derivative w.r.t. alpha_par is -dmudalpha
-        dmudalpha = 2.0 * mu ** 2 * (1.0 - mu ** 2)
-
-        # We then just need use to the product rule as we already precomputed dP(k')/dalpha
-        derP[npop + 1, :] = [
-            (kaiser[i] + kaiser[j]) * f * pk * dmudalpha + kaiser[i] * kaiser[j] * derPalpha[0]
+            kaiser[i] * kaiser[j] * derPalpha[0] * pksmooth
             for i in range(npop)
             for j in range(i, npop)
         ]
         derP[npop + 2, :] = [
-            -(kaiser[i] + kaiser[j]) * f * pk * dmudalpha + kaiser[i] * kaiser[j] * derPalpha[1]
+            kaiser[i] * kaiser[j] * derPalpha[1] * pksmooth
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+    else:
+        # Derivative of mu'**2 w.r.t alpha_perp. Derivative w.r.t. alpha_par is -dmudalpha
+        dmudalpha = 2.0 * mu**2 * (1.0 - mu**2)
+
+        # We then just need use to the product rule as we already precomputed dP(k')/dalpha
+        derP[npop + 1, :] = [
+            (kaiser[i] + kaiser[j]) * f * pk * dmudalpha
+            + kaiser[i] * kaiser[j] * derPalpha[0]
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+        derP[npop + 2, :] = [
+            -(kaiser[i] + kaiser[j]) * f * pk * dmudalpha
+            + kaiser[i] * kaiser[j] * derPalpha[1]
             for i in range(npop)
             for j in range(i, npop)
         ]

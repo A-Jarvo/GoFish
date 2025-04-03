@@ -4,20 +4,21 @@ import numpy as np
 
 class InputData:
     def __init__(self, pardict):
-
         df = self.read_nbar(pardict)
 
         self.zmin = df[" zmin"].to_numpy()
         self.zmax = df["zmax"].to_numpy()
         self.nz = np.array([df[i] for i in df.keys() if "nz" in i])
         self.bias = np.array([df[i] for i in df.keys() if "bias" in i])
-        self.volume = df["volume"].to_numpy() if "volume" in df.keys() else -np.ones(len(df))
+        self.volume = (
+            df["volume"].to_numpy() if "volume" in df.keys() else -np.ones(len(df))
+        )
 
         # Sort out any tracers without galaxies in a particular redshift bin
         self.remove_null_tracers()
 
     def read_nbar(self, pardict):
-        """ Reads redshift edges, number density, and bias from an input file
+        """Reads redshift edges, number density, and bias from an input file
 
         Parameters
         ----------
@@ -32,13 +33,17 @@ class InputData:
         import pandas as pd
 
         df = pd.read_csv(
-            pardict["inputfile"], delim_whitespace=True, dtype="float", skiprows=0, escapechar="#"
+            pardict["inputfile"],
+            delim_whitespace=True,
+            dtype="float",
+            skiprows=0,
+            escapechar="#",
         )
 
         return df
 
     def convert_nbar(self, volume, skyarea):
-        """ Converts the number of galaxies per sq. deg. per dz into number density in (h/Mpc)^3
+        """Converts the number of galaxies per sq. deg. per dz into number density in (h/Mpc)^3
 
         Parameters
         ----------
@@ -61,8 +66,7 @@ class InputData:
         self.bias /= growth
 
     def remove_null_tracers(self):
-
-        """ Sorts out any tracers that have zero number density in a particular redshift bin.
+        """Sorts out any tracers that have zero number density in a particular redshift bin.
             Does this my setting the bias to 0.0 in that bin and the number density to a very small number.
             This ensures their is no information in that bin from that tracer.
 
@@ -83,7 +87,6 @@ class InputData:
 # This class contains everything we might need to set up to compute the fisher matrix
 class CosmoResults:
     def __init__(self, pardict, zlow, zhigh):
-
         (
             self.z,
             self.volume,
@@ -103,8 +106,7 @@ class CosmoResults:
         self.kmax = float(pardict["kmax"])
 
     def run_camb(self, pardict, zlow, zhigh):
-
-        """ Runs an instance of CAMB given the cosmological parameters in pardict and redshift bins
+        """Runs an instance of CAMB given the cosmological parameters in pardict and redshift bins
 
         Parameters
         ----------
@@ -169,8 +171,12 @@ class CosmoResults:
             print("Error: Neither H0 nor h nor theta_s given in config file")
             exit()
         if "w0_fld" in parlinear.keys():
-            pars.set_dark_energy(w=float(parlinear["w0_fld"]), dark_energy_model="fluid")
-        pars.InitPower.set_params(As=float(parlinear["A_s"]), ns=float(parlinear["n_s"]))
+            pars.set_dark_energy(
+                w=float(parlinear["w0_fld"]), dark_energy_model="fluid"
+            )
+        pars.InitPower.set_params(
+            As=float(parlinear["A_s"]), ns=float(parlinear["n_s"])
+        )
         pars.set_matter_power(redshifts=np.concatenate([zmid[::-1], [0.0]]), kmax=5.0)
         pars.set_cosmology(
             H0=parlinear["H0"],
@@ -188,13 +194,15 @@ class CosmoResults:
         results = camb.get_results(pars)
 
         # Get the power spectrum
-        kin, zin, pklin = results.get_matter_power_spectrum(minkh=2.0e-5, maxkh=5.0, npoints=2000)
+        kin, zin, pklin = results.get_matter_power_spectrum(
+            minkh=2.0e-5, maxkh=5.0, npoints=2000
+        )
 
         # Get some derived quantities
         area = float(pardict["skyarea"]) * (np.pi / 180.0) ** 2
         rmin = results.comoving_radial_distance(zlow) * pars.H0 / 100.0
         rmax = results.comoving_radial_distance(zhigh) * pars.H0 / 100.0
-        volume = area / 3.0 * (rmax ** 3 - rmin ** 3)
+        volume = area / 3.0 * (rmax**3 - rmin**3)
         da = results.angular_diameter_distance(zmid)
         hubble = results.hubble_parameter(zmid)
         fsigma8 = results.get_fsigma8()[::-1][1:]
@@ -205,13 +213,26 @@ class CosmoResults:
 
         pk_splines = [splrep(kin, pklin[i + 1]) for i in range(len(zin[1:]))]
         pksmooth_splines = [
-            splrep(kin, self.smooth_hinton2017(kin, pklin[i + 1])) for i in range(len(zin[1:]))
+            splrep(kin, self.smooth_hinton2017(kin, pklin[i + 1]))
+            for i in range(len(zin[1:]))
         ]
 
-        return zmid, volume, kin, pk_splines, pksmooth_splines, da, hubble, f, sigma8, growth, r_d
+        return (
+            zmid,
+            volume,
+            kin,
+            pk_splines,
+            pksmooth_splines,
+            da,
+            hubble,
+            f,
+            sigma8,
+            growth,
+            r_d,
+        )
 
     def get_Sigmas(self, f, sigma8):
-        """ Compute the nonlinear degradation of the BAO feature in the perpendicular and parallel direction
+        """Compute the nonlinear degradation of the BAO feature in the perpendicular and parallel direction
 
         Parameters
         ----------
@@ -235,7 +256,7 @@ class CosmoResults:
         return Sigma_perp, Sigma_par
 
     def smooth_hinton2017(self, ks, pk, degree=13, sigma=1, weight=0.5):
-        """ Smooth power spectrum based on Hinton et. al., 2017 polynomial method
+        """Smooth power spectrum based on Hinton et. al., 2017 polynomial method
 
         Parameters
         ----------
@@ -270,7 +291,7 @@ class CosmoResults:
 
 
 def write_fisher(pardict, cov_inv, redshift, parameter_means):
-    """ Write Fisher predictions to text files
+    """Write Fisher predictions to text files
 
     Parameters
     ---------
