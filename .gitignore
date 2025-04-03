@@ -1,0 +1,6 @@
+output/
+*.txt
+*.png
+*.csv
+.DS_Store
+__pycache__/
