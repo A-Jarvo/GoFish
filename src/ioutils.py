@@ -1,10 +1,11 @@
 import copy
 import numpy as np
 import numpy.typing as npt
+from configobj import ConfigObj
 
 
 class InputData:
-    def __init__(self, pardict, beta_phi_fixed: bool):
+    def __init__(self, pardict: ConfigObj):
         df = self.read_nbar(pardict)
 
         self.zmin = df[" zmin"].to_numpy()
@@ -18,7 +19,7 @@ class InputData:
         # Sort out any tracers without galaxies in a particular redshift bin
         self.remove_null_tracers()
 
-    def read_nbar(self, pardict):
+    def read_nbar(self, pardict: ConfigObj):
         """Reads redshift edges, number density, and bias from an input file
 
         Parameters
@@ -87,7 +88,7 @@ class InputData:
 
 # This class contains everything we might need to set up to compute the fisher matrix
 class CosmoResults:
-    def __init__(self, pardict, zlow: float, zhigh: float):
+    def __init__(self, pardict: ConfigObj, zlow: float, zhigh: float):
         (
             self.z,
             self.volume,
@@ -107,7 +108,7 @@ class CosmoResults:
         self.kmin = np.amax([float(pardict["kmin"]), self.k[0]])
         self.kmax = float(pardict["kmax"])
 
-    def run_camb(self, pardict, zlow: npt.NDArray, zhigh: npt.NDArray):
+    def run_camb(self, pardict: ConfigObj, zlow: npt.NDArray, zhigh: npt.NDArray):
         """Runs an instance of CAMB given the cosmological parameters in pardict and redshift bins
 
         Parameters
@@ -318,7 +319,7 @@ class CosmoResults:
 
 
 def write_fisher(
-    pardict,
+    pardict: ConfigObj,
     cov_inv: npt.NDArray,
     redshift: float,
     parameter_means: list,
