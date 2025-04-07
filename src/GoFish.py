@@ -14,7 +14,7 @@ if __name__ == "__main__":
     pardict = ConfigObj(configfile)
 
     # Read in the file containing the redshift bins, nz and bias values
-    data = InputData(pardict)
+    data = InputData(pardict, pardict["beta_phi_fixed"])
     console.log("Read in the data file for redshifts, number density and bias.")
 
     # Set up the linear power spectrum and derived parameters based on the input cosmology
@@ -36,6 +36,10 @@ if __name__ == "__main__":
     console.log(data.nbar)
     console.log("#  Data bias")
     console.log(data.bias)
+
+    console.log("Fitting beta_phi amplitude?")
+    console.log(pardict["beta_phi_fixed"])
+    exit()
 
     # Precompute some things we might need for the Fisher matrix
     recon, derPalpha, derPalpha_BAO_only = Set_Bait(
@@ -129,7 +133,9 @@ if __name__ == "__main__":
             )
 
             # Output the fisher matrix for the redshift bin
-            write_fisher(pardict, cov_renorm, cosmo.z[iz], means)
+            write_fisher(
+                pardict, cov_renorm, cosmo.z[iz], means, pardict["beta_phi_fixed"]
+            )
 
         else:
             erralpha[iz] = 1.0e30
