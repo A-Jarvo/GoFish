@@ -3,12 +3,20 @@ from findiff import FinDiff
 from scipy.integrate import simpson as simps
 from scipy.interpolate import splrep, splev
 from scipy.linalg.lapack import dgesv
+from loguru import logger
+from ioutils import CosmoResults, InputData
+import numpy.typing as npt
 
 # from quadpy import quad
 from itertools import combinations_with_replacement
 
 
-def Set_Bait(cosmo, data, BAO_only=False):
+def Set_Bait(
+    cosmo: CosmoResults,
+    data: InputData,
+    BAO_only: bool = False,
+    beta_phi_fixed: bool = True,
+):
     # Compute the reconstruction factors for each redshift bin. Has shape len(z)
     recon = compute_recon(cosmo, data)
 
@@ -18,16 +26,23 @@ def Set_Bait(cosmo, data, BAO_only=False):
     derPalpha = compute_deriv_alphas(cosmo, BAO_only=BAO_only)
     derPalpha_BAO_only = compute_deriv_alphas(cosmo, BAO_only=True)
 
-    return recon, derPalpha, derPalpha_BAO_only
+    if not beta_phi_fixed:
+        # derPbetaphi_BAO_Only = compute_deriv_betaphiamplitude(cosmo, BAO_only=True)
+        return None
+    else:
+        return recon, derPalpha, derPalpha_BAO_only
 
 
-def compute_recon(cosmo, data):
+def compute_recon(cosmo: CosmoResults, data: InputData):
     muconst = 0.6
     kconst = 0.14
 
     nP = np.array([0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 6.0, 10.0])
     r_factor = np.array([1.0, 0.9, 0.8, 0.7, 0.6, 0.55, 0.52, 0.5])
-    r_spline = splrep(nP, r_factor)
+    r_spline = splrep(
+        nP, r_factor
+    )  # spline for reconstruction factor and signal to noise ratio
+    # this function computes the reconstruction factor using old literature equation.
 
     recon = np.empty(len(cosmo.z))
     kaiser_vec = data.bias + cosmo.f * muconst**2
@@ -43,7 +58,7 @@ def compute_recon(cosmo, data):
     return recon
 
 
-def CovRenorm(cov, parameter_means):
+def CovRenorm(cov: npt.NDArray, parameter_means: npt.NDArray) -> npt.NDArray:
     """Renormalises a covariance matrix with last 3 entries fsigma8, alpha_perp, alpha_par to last 3 entries
         fsigma8, Da, H. Assumes the input covariance matrix is in exactly this order.
 
@@ -71,7 +86,7 @@ def CovRenorm(cov, parameter_means):
     return cov_renorm
 
 
-def compute_deriv_alphas(cosmo, BAO_only=False):
+def compute_deriv_alphas(cosmo: CosmoResults, BAO_only: bool = False):
     from scipy.interpolate import RegularGridInterpolator
 
     order = 4
@@ -90,8 +105,12 @@ def compute_deriv_alphas(cosmo, BAO_only=False):
             pkarray[i + order] = splev(kinterp, cosmo.pk[0])
     derPk = FinDiff(0, dk, acc=4)(pkarray)[order]
     derPalpha = [
-        np.outer(derPk * cosmo.k, (mu**2 - 1.0)),
-        -np.outer(derPk * cosmo.k, (mu**2)),
+        np.outer(
+            derPk * cosmo.k, (mu**2 - 1.0)
+        ),  # dP(k')/dalpha_perp = dP/dk' * dk'/dalpha_perp + dP/dmu' * dmu'/dalpha_perp
+        -np.outer(
+            derPk * cosmo.k, (mu**2)
+        ),  # dP(k')/dalpha_par = dP/dk' * dk'/dalpha_par + dP/dmu' * dmu'/dalpha_par
     ]
     derPalpha_interp = [
         RegularGridInterpolator([cosmo.k, mu], derPalpha[i]) for i in range(2)
@@ -161,9 +180,12 @@ def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=Fa
         )
 
     else:
-        raise Exception(
-            '"GoFast=False" option needs to be updated. Use GoFast=True to use Simpson\'s rule.'
-        )
+        # raise Exception(
+        #     '"GoFast=False" option needs to be updated. Use GoFast=True to use Simpson\'s rule.'
+        # )
+        msg = '"GoFast=False" option needs to be updated. Use GoFast=True to use Simpson\'s rule.'
+        logger.error(msg)
+        raise (ValueError)
         # Integral over mu
         # OneFish = lambda *args: quad(
         #     CastNet, 0.0, 1.0, args=args, limit=10000, epsabs=1.0e-6, epsrel=1.0e-6
