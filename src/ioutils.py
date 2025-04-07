@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import numpy.typing as npt
 
 
 class InputData:
@@ -42,7 +43,7 @@ class InputData:
 
         return df
 
-    def convert_nbar(self, volume, skyarea):
+    def convert_nbar(self, volume: npt.array, skyarea: float) -> None:
         """Converts the number of galaxies per sq. deg. per dz into number density in (h/Mpc)^3
 
         Parameters
@@ -86,7 +87,7 @@ class InputData:
 
 # This class contains everything we might need to set up to compute the fisher matrix
 class CosmoResults:
-    def __init__(self, pardict, zlow, zhigh):
+    def __init__(self, pardict, zlow: float, zhigh: float):
         (
             self.z,
             self.volume,
@@ -99,13 +100,14 @@ class CosmoResults:
             self.sigma8,
             self.growth,
             self.r_d,
+            self.beta_phi,
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
         self.kmin = np.amax([float(pardict["kmin"]), self.k[0]])
         self.kmax = float(pardict["kmax"])
 
-    def run_camb(self, pardict, zlow, zhigh):
+    def run_camb(self, pardict, zlow: npt.array, zhigh: npt.array):
         """Runs an instance of CAMB given the cosmological parameters in pardict and redshift bins
 
         Parameters
@@ -210,6 +212,7 @@ class CosmoResults:
         r_d = results.get_derived_params()["rdrag"]
         f = fsigma8 / sigma8
         growth = sigma8 / results.get_sigma8()[-1]
+        beta_phi = 1.0
 
         pk_splines = [splrep(kin, pklin[i + 1]) for i in range(len(zin[1:]))]
         pksmooth_splines = [
@@ -229,9 +232,10 @@ class CosmoResults:
             sigma8,
             growth,
             r_d,
+            beta_phi,
         )
 
-    def get_Sigmas(self, f, sigma8):
+    def get_Sigmas(self, f: npt.array, sigma8: npt.array):
         """Compute the nonlinear degradation of the BAO feature in the perpendicular and parallel direction
 
         Parameters
@@ -255,7 +259,14 @@ class CosmoResults:
 
         return Sigma_perp, Sigma_par
 
-    def smooth_hinton2017(self, ks, pk, degree=13, sigma=1, weight=0.5):
+    def smooth_hinton2017(
+        self,
+        ks: npt.array,
+        pk: npt.array,
+        degree: npt.float = 13,
+        sigma: npt.float = 1,
+        weight: npt.float = 0.5,
+    ):
         """Smooth power spectrum based on Hinton et. al., 2017 polynomial method
 
         Parameters
@@ -289,9 +300,21 @@ class CosmoResults:
 
         return pk_smoothed
 
+    def fitting_formula_Baumann19(self, ks: npt.array) -> npt.array:
+        """Compute the fitting formula for the power spectrum phase shift (for standard model neutrinos) based on Baumann et. al., 2019"""
+        kstar = 0.0324  # mpc/h
+        phiinf = 0.227
+        epsilon = 0.872
+        res = phiinf / (1.0 + (kstar / ks) ** (epsilon))
+        return res
 
-def write_fisher(pardict, cov_inv, redshift, parameter_means):
-    """Write Fisher predictions to text files
+
+def write_fisher(
+    pardict, cov_inv: npt.array, redshift: float, parameter_means: list
+) -> None:
+    """
+
+    Write Fisher predictions to text files
 
     Parameters
     ---------
@@ -311,7 +334,10 @@ def write_fisher(pardict, cov_inv, redshift, parameter_means):
     cov_filename = pardict["outputfile"] + "_cov_" + format(redshift, ".2f") + ".txt"
     data_filename = pardict["outputfile"] + "_data_" + format(redshift, ".2f") + ".txt"
 
-    np.savetxt(cov_filename, cov_inv[-3:, -3:])
-    np.savetxt(data_filename, parameter_means)
+    if pardict["beta_phi_fixed"]:
+        np.savetxt(cov_filename, cov_inv[-3:, -3:])
+        np.savetxt(data_filename, parameter_means)
 
-    return
+    else:
+        np.savetxt(cov_filename, cov_inv[-4:, -4:])
+        np.savetxt(data_filename, parameter_means)

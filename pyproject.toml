@@ -8,11 +8,15 @@ dependencies = [
 	"matplotlib>=3.10.0",
    	"numpy<=3.0.0",
 	"scipy>=1.15.2",
-	"camb",
-	"configobj",
-	"pandas",
-	"findiff",
-	"quadpy"
+	"camb>=1.5.9",
+	"configobj>=5.0.9",
+	"pandas>=2.2.3",
+	"findiff>=0.12.1",
+	"pydantic>=2.10.6",
+    	"pydantic-settings>=2.8.1",
+    	"rich>=13.9.4",
+	"loguru>=0.7.3",
+	#"quadpy"
 ]
 
 [dependency-groups]

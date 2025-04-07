@@ -4,8 +4,10 @@ from configobj import ConfigObj
 from TackleBox import Set_Bait, Fish, CovRenorm
 from ioutils import CosmoResults, InputData, write_fisher
 from scipy.linalg.lapack import dgesv
+from rich.console import Console
 
 if __name__ == "__main__":
+    console = Console()
     # Read in the config file
     configfile = sys.argv[1]
     # print(sys.argv[1])
@@ -13,33 +15,41 @@ if __name__ == "__main__":
 
     # Read in the file containing the redshift bins, nz and bias values
     data = InputData(pardict)
+    console.log("Read in the data file for redshifts, number density and bias.")
 
     # Set up the linear power spectrum and derived parameters based on the input cosmology
     cosmo = CosmoResults(pardict, data.zmin, data.zmax)
     if np.any(data.volume > 0):
         cosmo.volume = data.volume * 1.0e9
 
+    console.log("computed CAMB linear matter power spectra for redshifts.")
+
     # Convert the nz to nbar in (h/Mpc)^3
     data.convert_nbar(cosmo.volume, float(pardict["skyarea"]))
+
+    console.log("Number per redshift bin converted to number density per volume.")
 
     # Scales the bias so that it goes as b/G(z)
     if pardict.as_bool("scale_bias"):
         data.scale_bias(cosmo.growth)
-    print("#  Data nbar")
-    print(data.nbar)
-    print("#  Data bias")
-    print(data.bias)
+    console.log("#  Data nbar")
+    console.log(data.nbar)
+    console.log("#  Data bias")
+    console.log(data.bias)
 
     # Precompute some things we might need for the Fisher matrix
     recon, derPalpha, derPalpha_BAO_only = Set_Bait(
         cosmo, data, BAO_only=pardict.as_bool("BAO_only")
     )
-    print("#  Data recon factor")
-    print(recon)
+    console.log(
+        "Computed reconstruction factors and derivatives of the power spectrum w.r.t. forecast parameters."
+    )
+    console.log("#  Data recon factor")
+    console.log(recon)
 
     # Loop over redshifts and compute the Fisher matrix and output the 3x3 matrix
     identity = np.eye(len(data.nbar) + 3)
-    print(
+    console.log(
         "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)"
     )
     erralpha = np.zeros(len(cosmo.z))
