@@ -13,8 +13,11 @@ if __name__ == "__main__":
     # print(sys.argv[1])
     pardict = ConfigObj(configfile)
 
+    if "beta_phi_fixed" not in pardict:
+        pardict["beta_phi_fixed"] = True
+
     # Read in the file containing the redshift bins, nz and bias values
-    data = InputData(pardict, pardict["beta_phi_fixed"])
+    data = InputData(pardict)
     console.log("Read in the data file for redshifts, number density and bias.")
 
     # Set up the linear power spectrum and derived parameters based on the input cosmology
