@@ -10,6 +10,4 @@ the mean values (data).
 The order of parameters in both the data and covaraince files is fs8, DA, H.
 DA is in Megaparsecs and H is in Megaparsecs/km/s.
 
-If you have any questions, comments, or complaints feel free to get in touch with
-Cullan Howlett (chowlett@uq.edu.au)
-Lado Samushia (lado.samushia.office@gmail.com)
+Now can add beta_phi for phase shift amplitude, in future planning to add parameters for non-standard neutrino properties to be measured.
