@@ -48,11 +48,10 @@ if __name__ == "__main__":
 
     console.log("Fitting beta_phi amplitude?")
     console.log(pardict["beta_phi_fixed"])
-    exit()
 
     # Precompute some things we might need for the Fisher matrix
-    recon, derPalpha, derPalpha_BAO_only = Set_Bait(
-        cosmo, data, BAO_only=pardict.as_bool("BAO_only")
+    recon, derPalpha, derPalpha_BAO_only, derPbeta_BAO_only, derPbeta_amplitude = (
+        Set_Bait(cosmo, data, BAO_only=pardict.as_bool("BAO_only"))
     )
     console.log(
         "Computed reconstruction factors and derivatives of the power spectrum w.r.t. forecast parameters."

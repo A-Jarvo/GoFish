@@ -4,8 +4,14 @@ from scipy.integrate import simpson as simps
 from scipy.interpolate import splrep, splev
 from scipy.linalg.lapack import dgesv
 from loguru import logger
-from ioutils import CosmoResults, InputData
+from ioutils import (
+    CosmoResults,
+    InputData,
+    fitting_formula_Baumann19,
+    fitting_formula_Baumann19_derivwrtk,
+)
 import numpy.typing as npt
+
 
 # from quadpy import quad
 from itertools import combinations_with_replacement
@@ -27,10 +33,10 @@ def Set_Bait(
     derPalpha_BAO_only = compute_deriv_alphas(cosmo, BAO_only=True)
 
     if not beta_phi_fixed:
-        # derPbetaphi_BAO_Only = compute_deriv_betaphiamplitude(cosmo, BAO_only=True)
-        return None
+        derPbetaphi = compute_deriv_betaphiamplitude(cosmo)
+        return recon, derPalpha, derPalpha_BAO_only, derPbetaphi
     else:
-        return recon, derPalpha, derPalpha_BAO_only
+        return recon, derPalpha, derPalpha_BAO_only, None
 
 
 def compute_recon(cosmo: CosmoResults, data: InputData):
@@ -107,16 +113,48 @@ def compute_deriv_alphas(cosmo: CosmoResults, BAO_only: bool = False):
     derPalpha = [
         np.outer(
             derPk * cosmo.k, (mu**2 - 1.0)
-        ),  # dP(k')/dalpha_perp = dP/dk' * dk'/dalpha_perp + dP/dmu' * dmu'/dalpha_perp
+        ),  # dP(k')/dalpha_perp = dP/dk * dk/dalpha_perp
         -np.outer(
             derPk * cosmo.k, (mu**2)
-        ),  # dP(k')/dalpha_par = dP/dk' * dk'/dalpha_par + dP/dmu' * dmu'/dalpha_par
+        ),  # dP(k')/dalpha_par = dP/dk * dk/dalpha_par
     ]
     derPalpha_interp = [
         RegularGridInterpolator([cosmo.k, mu], derPalpha[i]) for i in range(2)
     ]
 
     return derPalpha_interp
+
+
+def compute_deriv_betaphiamplitude(cosmo: CosmoResults):
+    from scipy.interpolate import RegularGridInterpolator
+
+    order = 4  # interpolating power spectrum at multiple different ks to get a precise derivative from findiff
+    nmu = 100
+    dk = 0.0001
+    mu = np.linspace(0.0, 1.0, nmu)
+
+    pkarray = np.empty((2 * order + 1, len(cosmo.k)))
+    for i in range(-order, order + 1):
+        kinterp = cosmo.k + i * dk
+
+        pkarray[i + order] = splev(kinterp, cosmo.pk[0]) / splev(
+            kinterp, cosmo.pksmooth[0]
+        )
+
+    derPk = FinDiff(0, dk, acc=4)(pkarray)[order]
+    dk_dbeta = (
+        fitting_formula_Baumann19(cosmo.k) / cosmo.r_d
+        + (cosmo.beta_phi - 1.0)
+        * fitting_formula_Baumann19_derivwrtk(cosmo.k)
+        / cosmo.r_d
+    )
+    derPbeta_amplitude = np.outer(
+        derPk * dk_dbeta, np.ones(len(mu))
+    )  # dP(k)/dbeta = dP/dk * dk/dbeta , dk/dbeta = f(k)/r_s + (beta-1)/r_s * df/dk
+    derPbeta_interp = [
+        RegularGridInterpolator([cosmo.k, mu], derPbeta_amplitude[i]) for i in range(2)
+    ]
+    return derPbeta_interp
 
 
 def Fish(

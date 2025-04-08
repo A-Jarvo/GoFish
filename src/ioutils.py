@@ -309,14 +309,6 @@ class CosmoResults:
 
         return pk_smoothed
 
-    def fitting_formula_Baumann19(self, ks: npt.NDArray) -> npt.NDArray:
-        """Compute the fitting formula for the power spectrum phase shift (for standard model neutrinos) based on Baumann et. al., 2019"""
-        kstar = 0.0324  # mpc/h
-        phiinf = 0.227
-        epsilon = 0.872
-        res = phiinf / (1.0 + (kstar / ks) ** (epsilon))
-        return res
-
 
 def write_fisher(
     pardict: ConfigObj,
@@ -353,3 +345,28 @@ def write_fisher(
     else:
         np.savetxt(cov_filename, cov_inv[-4:, -4:])
         np.savetxt(data_filename, parameter_means)
+
+
+def fitting_formula_Baumann19(ks: npt.NDArray) -> npt.NDArray:
+    """Compute the fitting formula for the power spectrum phase shift (for standard model neutrinos) based on Baumann et. al., 2019"""
+    kstar = 0.0324  # mpc/h
+    phiinf = 0.227
+    epsilon = 0.872
+    res = phiinf / (1.0 + (kstar / ks) ** (epsilon))
+    return res
+
+
+def fitting_formula_Baumann19_derivwrtk(ks: npt.NDArray) -> npt.NDArray:
+    """Compute the derivative of the fitting formula for the power spectrum phase shift
+    (for standard model neutrinos) based on Baumann et. al., 2019, deriv. w.r.t. k (not kstar)"""
+    kstar = 0.0324  # mpc/h
+    phiinf = 0.227
+    epsilon = 0.872
+    res = (
+        -phiinf
+        * epsilon
+        / (1.0 + (kstar / ks) ** (epsilon)) ** 2
+        * (kstar / ks) ** (epsilon - 1.0)
+        * (-kstar / ks**2)
+    )
+    return res
