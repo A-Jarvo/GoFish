@@ -51,7 +51,10 @@ if __name__ == "__main__":
 
     # Precompute some things we might need for the Fisher matrix
     recon, derPalpha, derPalpha_BAO_only, derPbeta_amplitude = Set_Bait(
-        cosmo, data, BAO_only=pardict.as_bool("BAO_only")
+        cosmo,
+        data,
+        BAO_only=pardict.as_bool("BAO_only"),
+        beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
     )
     console.log(
         "Computed reconstruction factors and derivatives of the power spectrum w.r.t. forecast parameters."
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     if not pardict.as_bool("beta_phi_fixed"):
         identity = np.eye(len(data.nbar) + 4)
         console.log(
-            "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)    beta_err(%)"
+            "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   beta_err(%)"
         )
         erralpha = np.zeros(len(cosmo.z))
         FullCatch = np.zeros(
@@ -163,8 +166,10 @@ if __name__ == "__main__":
             # print(Catch)
 
             # Print the parameter means and errors
-            errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
-            if not pardict.as_bool("beta_phi_fixed"):
+            errs = None
+            if pardict.as_bool("beta_phi_fixed"):
+                errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
+            else:
                 errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / means
             txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
                 cosmo.z[iz],
@@ -178,7 +183,8 @@ if __name__ == "__main__":
                 erralpha[iz],
             )
             if not pardict.as_bool("beta_phi_fixed"):
-                txt = txt + "       {0:.2f}".format(means[3])
+                # txt = txt + "       {0:.2f}".format(means[3])
+                txt = txt + "       {0:.2f}".format(errs[3])
             console.log(txt)
 
             # Output the fisher matrix for the redshift bin
@@ -205,7 +211,8 @@ if __name__ == "__main__":
                 erralpha[iz],
             )
             if not pardict.as_bool("beta_phi_fixed"):
-                txt = txt + "       {0:.2f}".format(means[3])
+                # txt = txt + "       {0:.2f}".format(means[3])
+                txt = txt + "       {0:.2f}".format(errs[3])
             console.log(txt)
 
     # Run the cosmological parameters at the centre of the combined redshift bin
@@ -228,8 +235,10 @@ if __name__ == "__main__":
     if not pardict.as_bool("beta_phi_fixed"):
         means = np.append(means, cosmo.beta_phi)
     cov_renorm = CovRenorm(cov, means, beta_phi_fixed=pardict.as_bool("beta_phi_fixed"))
-    errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
-    if not pardict.as_bool("beta_phi_fixed"):
+    errs = None
+    if pardict.as_bool("beta_phi_fixed"):
+        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
+    else:
         errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / means
     console.log("#  Combined errors")
     console.log("#=================")
@@ -245,6 +254,6 @@ if __name__ == "__main__":
         erralpha,
     )
     if not pardict.as_bool("beta_phi_fixed"):
-        txt = txt + "       {0:.2f}".format(means[3])
+        # txt = txt + "       {0:.2f}".format(means[3])
         txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)

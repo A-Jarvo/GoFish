@@ -159,9 +159,7 @@ def compute_deriv_betaphiamplitude(cosmo: CosmoResults):
     derPbeta_amplitude = np.outer(
         derPk * dk_dbeta, np.ones(len(mu))
     )  # dP(k')/dbeta = dP/dk' * dk'/dbeta , dk'/dbeta = f(k')/r_s + (beta-1)/r_s * df/dk'
-    derPbeta_interp = [
-        RegularGridInterpolator([cosmo.k, mu], derPbeta_amplitude[i]) for i in range(2)
-    ]
+    derPbeta_interp = [RegularGridInterpolator([cosmo.k, mu], derPbeta_amplitude)]
     return derPbeta_interp
 
 
