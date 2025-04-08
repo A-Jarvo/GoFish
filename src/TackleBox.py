@@ -36,7 +36,7 @@ def Set_Bait(
         derPbetaphi = compute_deriv_betaphiamplitude(cosmo)
         return recon, derPalpha, derPalpha_BAO_only, derPbetaphi
     else:
-        return recon, derPalpha, derPalpha_BAO_only, None
+        return recon, derPalpha, derPalpha_BAO_only, []
 
 
 def compute_recon(cosmo: CosmoResults, data: InputData):
@@ -64,7 +64,9 @@ def compute_recon(cosmo: CosmoResults, data: InputData):
     return recon
 
 
-def CovRenorm(cov: npt.NDArray, parameter_means: npt.NDArray) -> npt.NDArray:
+def CovRenorm(
+    cov: npt.NDArray, parameter_means: npt.NDArray, beta_phi_fixed: bool = True
+) -> npt.NDArray:
     """Renormalises a covariance matrix with last 3 entries fsigma8, alpha_perp, alpha_par to last 3 entries
         fsigma8, Da, H. Assumes the input covariance matrix is in exactly this order.
 
@@ -82,9 +84,15 @@ def CovRenorm(cov: npt.NDArray, parameter_means: npt.NDArray) -> npt.NDArray:
     """
 
     # Set up the jacobian of the transformation
-    jacobian = np.identity(cov.shape[0])
-    jacobian[-2, -2] = parameter_means[1]
-    jacobian[-1, -1] = -parameter_means[2]
+
+    if beta_phi_fixed:
+        jacobian = np.identity(cov.shape[0])
+        jacobian[-2, -2] = parameter_means[1]
+        jacobian[-1, -1] = -parameter_means[2]
+    else:
+        jacobian = np.identity(cov.shape[0])
+        jacobian[-3, -3] = parameter_means[1]
+        jacobian[-2, -2] = -parameter_means[2]
 
     # Renormalize covariance from alpha's to DA/H
     cov_renorm = jacobian @ cov @ jacobian.T
@@ -113,10 +121,10 @@ def compute_deriv_alphas(cosmo: CosmoResults, BAO_only: bool = False):
     derPalpha = [
         np.outer(
             derPk * cosmo.k, (mu**2 - 1.0)
-        ),  # dP(k')/dalpha_perp = dP/dk * dk/dalpha_perp
+        ),  # dP(k')/dalpha_perp = dP/dk' * dk'/dalpha_perp
         -np.outer(
             derPk * cosmo.k, (mu**2)
-        ),  # dP(k')/dalpha_par = dP/dk * dk/dalpha_par
+        ),  # dP(k')/dalpha_par = dP/dk' * dk'/dalpha_par
     ]
     derPalpha_interp = [
         RegularGridInterpolator([cosmo.k, mu], derPalpha[i]) for i in range(2)
@@ -150,7 +158,7 @@ def compute_deriv_betaphiamplitude(cosmo: CosmoResults):
     )
     derPbeta_amplitude = np.outer(
         derPk * dk_dbeta, np.ones(len(mu))
-    )  # dP(k)/dbeta = dP/dk * dk/dbeta , dk/dbeta = f(k)/r_s + (beta-1)/r_s * df/dk
+    )  # dP(k')/dbeta = dP/dk' * dk'/dbeta , dk'/dbeta = f(k')/r_s + (beta-1)/r_s * df/dk'
     derPbeta_interp = [
         RegularGridInterpolator([cosmo.k, mu], derPbeta_amplitude[i]) for i in range(2)
     ]
@@ -164,9 +172,11 @@ def Fish(
     data: InputData,
     iz: int,
     recon: npt.NDArray,
-    derPalpha,
+    derPalpha: list,
+    derPbeta: list,
     BAO_only: bool = True,
     GoFast: bool = False,
+    beta_phi_fixed: bool = True,
 ):
     """Computes the Fisher information on cosmological parameters biases*sigma8, fsigma8, alpha_perp and alpha_par
         for a given redshift bin by integrating a separate function (CastNet) over k and mu.
@@ -218,7 +228,18 @@ def Fish(
         ManyFish = simps(
             simps(
                 CastNet(
-                    muvec, kvec, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only
+                    muvec,
+                    kvec,
+                    iz,
+                    npop,
+                    npk,
+                    data,
+                    cosmo,
+                    recon,
+                    derPalpha,
+                    derPbeta,
+                    BAO_only,
+                    beta_phi_fixed,
                 ),
                 x=muvec,
                 axis=-1,
@@ -266,7 +287,9 @@ def CastNet(
     cosmo: CosmoResults,
     recon: npt.NDArray,
     derPalpha: list,
+    derPbeta: list,
     BAO_only: bool,
+    beta_phi_fixed: bool = True,
 ):
     """Compute the Fisher matrix for a vector of k and mu at a particular redshift.
 
@@ -312,6 +335,8 @@ def CastNet(
     """
 
     Shoal = np.empty((npop + 3, npop + 3, len(k), len(mu)))
+    if not beta_phi_fixed:
+        Shoal = np.empty((npop + 4, npop + 4, len(k), len(mu)))
 
     # Compute the kaiser factors for each galaxy sample at the redshift as a function of mu
     kaiser = np.tile(data.bias[:, iz], (len(mu), 1)).T + cosmo.f[iz] * mu**2
@@ -329,14 +354,19 @@ def CastNet(
     pkval = splev(k, cosmo.pk[iz])
     pksmoothval = splev(k, cosmo.pksmooth[iz])
     coords = [[kval, muval] for kval in k for muval in mu]
+    derPalphaval, derPbetaval = [], []
     if BAO_only:
         derPalphaval = [derPalpha[i](coords).reshape(len(k), len(mu)) for i in range(2)]
+        derPbetaval = (
+            [derPbeta[0](coords).reshape(len(k), len(mu))] if not beta_phi_fixed else []
+        )
     else:
         derPalphaval = [
             derPalpha[i](coords).reshape(len(k), len(mu))
             * (cosmo.sigma8[iz] / cosmo.sigma8[0]) ** 2
             for i in range(2)
         ]
+        derPbetaval = [np.ones((len(k), len(mu)))]
 
     # Loop over each k and mu value and compute the Fisher information for the cosmological parameters
     for i, kval in enumerate(k):
@@ -349,9 +379,11 @@ def CastNet(
                 pksmoothval[i],
                 muval,
                 [derPalphaval[0][i, j], derPalphaval[1][i, j]],
+                [derPbetaval[0][i, j]] if not beta_phi_fixed else [],
                 cosmo.f[iz],
                 cosmo.sigma8[iz],
                 BAO_only,
+                beta_phi_fixed=beta_phi_fixed,
             )
 
             covP, cov_inv = compute_inv_cov(
@@ -429,9 +461,11 @@ def compute_full_deriv(
     pksmooth: float,
     mu: float,
     derPalpha: list,
+    derPbeta: list,
     f: float,
     sigma8: float,
     BAO_only: bool,
+    beta_phi_fixed: bool = True,
 ):
     """Computes the derivatives of the power spectrum as a function of
         biases*sigma8, fsigma8, alpha_perp and alpha_par (in that order)
@@ -477,6 +511,8 @@ def compute_full_deriv(
     """
 
     derP = np.zeros((npop + 3, npk))
+    if not beta_phi_fixed:
+        derP = np.zeros((npop + 4, npk))
 
     # Derivatives of all power spectra w.r.t to the bsigma8 of each population
     for i in range(npop):
@@ -508,6 +544,13 @@ def compute_full_deriv(
             for i in range(npop)
             for j in range(i, npop)
         ]
+        if not beta_phi_fixed:
+            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
+            derP[npop + 3, :] = [
+                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
+                for i in range(npop)
+                for j in range(i, npop)
+            ]
     else:
         # Derivative of mu'**2 w.r.t alpha_perp. Derivative w.r.t. alpha_par is -dmudalpha
         dmudalpha = 2.0 * mu**2 * (1.0 - mu**2)
