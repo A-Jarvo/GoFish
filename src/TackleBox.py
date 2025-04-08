@@ -119,7 +119,17 @@ def compute_deriv_alphas(cosmo: CosmoResults, BAO_only: bool = False):
     return derPalpha_interp
 
 
-def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=False):
+def Fish(
+    cosmo: CosmoResults,
+    kmin: float,
+    kmax: float,
+    data: InputData,
+    iz: int,
+    recon: npt.NDArray,
+    derPalpha,
+    BAO_only: bool = True,
+    GoFast: bool = False,
+):
     """Computes the Fisher information on cosmological parameters biases*sigma8, fsigma8, alpha_perp and alpha_par
         for a given redshift bin by integrating a separate function (CastNet) over k and mu.
 
@@ -208,7 +218,18 @@ def Fish(cosmo, kmin, kmax, data, iz, recon, derPalpha, BAO_only=True, GoFast=Fa
     return ManyFish
 
 
-def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
+def CastNet(
+    mu: npt.NDArray,
+    k: npt.NDArray,
+    iz: int,
+    npop: int,
+    npk: int,
+    data: InputData,
+    cosmo: CosmoResults,
+    recon: npt.NDArray,
+    derPalpha: list,
+    BAO_only: bool,
+):
     """Compute the Fisher matrix for a vector of k and mu at a particular redshift.
 
     Parameters
@@ -304,7 +325,9 @@ def CastNet(mu, k, iz, npop, npk, data, cosmo, recon, derPalpha, BAO_only):
     return Shoal
 
 
-def compute_inv_cov(npop, npk, kaiser, pk, nbar):
+def compute_inv_cov(
+    npop: int, npk: int, kaiser: npt.NDArray, pk: float, nbar: npt.NDArray
+):
     """Computes the covariance matrix of the auto and cross-power spectra for a given
         k and mu value, as well as its inverse.
 
@@ -361,7 +384,16 @@ def compute_inv_cov(npop, npk, kaiser, pk, nbar):
 
 
 def compute_full_deriv(
-    npop, npk, kaiser, pk, pksmooth, mu, derPalpha, f, sigma8, BAO_only
+    npop: int,
+    npk: int,
+    kaiser: npt.NDArray,
+    pk: float,
+    pksmooth: float,
+    mu: float,
+    derPalpha: list,
+    f: float,
+    sigma8: float,
+    BAO_only: bool,
 ):
     """Computes the derivatives of the power spectrum as a function of
         biases*sigma8, fsigma8, alpha_perp and alpha_par (in that order)

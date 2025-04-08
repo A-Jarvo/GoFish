@@ -5,6 +5,7 @@ from TackleBox import Set_Bait, Fish, CovRenorm
 from ioutils import CosmoResults, InputData, write_fisher
 from scipy.linalg.lapack import dgesv
 from rich.console import Console
+from loguru import logger
 
 if __name__ == "__main__":
     console = Console()
@@ -15,6 +16,11 @@ if __name__ == "__main__":
 
     if "beta_phi_fixed" not in pardict:
         pardict["beta_phi_fixed"] = True
+
+    if not pardict["beta_phi_fixed"] and not pardict["BAO_only"]:
+        msg = "You have set beta_phi_fixed = False and BAO_only = False. This is not allowed."
+        logger.error(msg)
+        raise (ValueError)
 
     # Read in the file containing the redshift bins, nz and bias values
     data = InputData(pardict)
