@@ -40,15 +40,9 @@ if __name__ == "__main__":
 
     print(
         "Total number of objects:",
-        np.sum(
-            data.nbar[0] * cosmo.volume
-            + data.nbar[1] * cosmo.volume
-            + data.nbar[2] * cosmo.volume
-            + data.nbar[3] * cosmo.volume
-        ),
+        np.sum(np.array([data.nbar[i] * cosmo.volume for i in range(len(data.nbar))])),
     )
     print("Total volume:", np.sum(cosmo.volume))
-    # exit()
 
     # Scales the bias so that it goes as b/G(z)
     if pardict.as_bool("scale_bias"):
