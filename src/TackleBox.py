@@ -8,7 +8,7 @@ from ioutils import (
     CosmoResults,
     InputData,
     fitting_formula_Baumann19,
-    fitting_formula_Baumann19_derivwrtk,
+    #  fitting_formula_Baumann19_derivwrtk,
 )
 import numpy.typing as npt
 
@@ -150,15 +150,10 @@ def compute_deriv_betaphiamplitude(cosmo: CosmoResults):
         )
 
     derPk = FinDiff(0, dk, acc=4)(pkarray)[order]
-    dk_dbeta = (
-        fitting_formula_Baumann19(cosmo.k) / cosmo.r_d
-        + (cosmo.beta_phi - 1.0)
-        * fitting_formula_Baumann19_derivwrtk(cosmo.k)
-        / cosmo.r_d
-    )
+    dk_dbeta = fitting_formula_Baumann19(cosmo.k) / cosmo.r_d
     derPbeta_amplitude = np.outer(
         derPk * dk_dbeta, np.ones(len(mu))
-    )  # dP(k')/dbeta = dP/dk' * dk'/dbeta , dk'/dbeta = f(k')/r_s + (beta-1)/r_s * df/dk'
+    )  # dP(k')/dbeta = dP/dk' * dk'/dbeta , dk'/dbeta = f(k')/r_s
     derPbeta_interp = [RegularGridInterpolator([cosmo.k, mu], derPbeta_amplitude)]
     return derPbeta_interp
 

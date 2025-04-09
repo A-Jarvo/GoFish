@@ -356,17 +356,17 @@ def fitting_formula_Baumann19(ks: npt.NDArray) -> npt.NDArray:
     return res
 
 
-def fitting_formula_Baumann19_derivwrtk(ks: npt.NDArray) -> npt.NDArray:
-    """Compute the derivative of the fitting formula for the power spectrum phase shift
-    (for standard model neutrinos) based on Baumann et. al., 2019, deriv. w.r.t. k (not kstar)"""
-    kstar = 0.0324  # mpc/h
-    phiinf = 0.227
-    epsilon = 0.872
-    res = (
-        -phiinf
-        * epsilon
-        / (1.0 + (kstar / ks) ** (epsilon)) ** 2
-        * (kstar / ks) ** (epsilon - 1.0)
-        * (-kstar / ks**2)
-    )
-    return res
+# def fitting_formula_Baumann19_derivwrtk(ks: npt.NDArray) -> npt.NDArray:
+#     """Compute the derivative of the fitting formula for the power spectrum phase shift
+#     (for standard model neutrinos) based on Baumann et. al., 2019, deriv. w.r.t. k (not kstar)"""
+#     kstar = 0.0324  # mpc/h
+#     phiinf = 0.227
+#     epsilon = 0.872
+#     res = (
+#         -phiinf
+#         * epsilon
+#         / (1.0 + (kstar / ks) ** (epsilon)) ** 2
+#         * (kstar / ks) ** (epsilon - 1.0)
+#         * (-kstar / ks**2)
+#     )
+#     return res

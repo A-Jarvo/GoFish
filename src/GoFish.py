@@ -38,6 +38,18 @@ if __name__ == "__main__":
 
     console.log("Number per redshift bin converted to number density per volume.")
 
+    print(
+        "Total number of objects:",
+        np.sum(
+            data.nbar[0] * cosmo.volume
+            + data.nbar[1] * cosmo.volume
+            + data.nbar[2] * cosmo.volume
+            + data.nbar[3] * cosmo.volume
+        ),
+    )
+    print("Total volume:", np.sum(cosmo.volume))
+    # exit()
+
     # Scales the bias so that it goes as b/G(z)
     if pardict.as_bool("scale_bias"):
         data.scale_bias(cosmo.growth)
