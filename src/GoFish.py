@@ -34,7 +34,8 @@ if __name__ == "__main__":
     console.log("computed CAMB linear matter power spectra for redshifts.")
 
     # Convert the nz to nbar in (h/Mpc)^3
-    data.convert_nbar(cosmo.volume, float(pardict["skyarea"]))
+    if data.nbar is None:  # we got a file with nz instead of nbar, so do a conversion
+        data.convert_nbar(cosmo.volume, float(pardict["skyarea"]))
 
     console.log("Number per redshift bin converted to number density per volume.")
 
@@ -90,7 +91,7 @@ if __name__ == "__main__":
         )
 
     for iz in range(len(cosmo.z)):
-        if np.any(data.nz[:, iz] > 1.0e-30):
+        if np.any(data.nbar[:, iz] > 1.0e-30):
             Catch = Fish(
                 cosmo,
                 cosmo.kmin,
@@ -233,6 +234,7 @@ if __name__ == "__main__":
     # Invert the Combined Fisher matrix to get the parameter
     # covariance matrix and compute means and errors
     cov = dgesv(FullCatch, identity)[2]
+
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
     erralpha = 100.0 * np.sqrt(J @ cov[-2:, -2:] @ J.T)
     if not pardict.as_bool("beta_phi_fixed"):

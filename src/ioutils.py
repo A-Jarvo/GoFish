@@ -16,6 +16,12 @@ class InputData:
             df["volume"].to_numpy() if "volume" in df.keys() else -np.ones(len(df))
         )
 
+        self.nbar = (
+            np.array([df[i] for i in df.keys() if "nbar" in i]) * 1e-3
+            if "nbar" in df.keys()
+            else None
+        )
+
         # Sort out any tracers without galaxies in a particular redshift bin
         self.remove_null_tracers()
 
