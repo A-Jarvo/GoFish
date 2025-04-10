@@ -9,5 +9,3 @@ The code will create a set of two output text files for each redshift: one for c
 the mean values (data).
 The order of parameters in both the data and covaraince files is fs8, DA, H.
 DA is in Megaparsecs and H is in Megaparsecs/km/s.
-
-Now can add beta_phi for phase shift amplitude, in future planning to add parameters for non-standard neutrino properties to be measured.
