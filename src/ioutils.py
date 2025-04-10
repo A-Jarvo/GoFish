@@ -108,6 +108,7 @@ class CosmoResults:
             self.growth,
             self.r_d,
             self.beta_phi,
+            self.log10Geff,
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
@@ -228,6 +229,11 @@ class CosmoResults:
         beta_phi = (parlinear["Neff"] / (alpha_nu + parlinear["Neff"])) / (
             3.044 / (alpha_nu + 3.044)
         )
+        log10Geff = (
+            pardict.as_float("log10Geff")
+            if "log10Geff" in pardict.keys()
+            else -np.infty
+        )
 
         pk_splines = [splrep(kin, pklin[i + 1]) for i in range(len(zin[1:]))]
         pksmooth_splines = [
@@ -248,6 +254,7 @@ class CosmoResults:
             growth,
             r_d,
             beta_phi,
+            log10Geff,
         )
 
     def get_Sigmas(self, f: npt.NDArray, sigma8: npt.NDArray):
@@ -322,6 +329,7 @@ def write_fisher(
     redshift: float,
     parameter_means: list,
     beta_phi_fixed: bool,
+    geff_fixed: bool,
 ) -> None:
     """
     Write Fisher predictions to text files
@@ -344,12 +352,14 @@ def write_fisher(
     cov_filename = pardict["outputfile"] + "_cov_" + format(redshift, ".2f") + ".txt"
     data_filename = pardict["outputfile"] + "_data_" + format(redshift, ".2f") + ".txt"
 
-    if beta_phi_fixed:
+    if beta_phi_fixed and geff_fixed:
         np.savetxt(cov_filename, cov_inv[-3:, -3:])
         np.savetxt(data_filename, parameter_means)
-
-    else:
+    elif beta_phi_fixed and not geff_fixed:
         np.savetxt(cov_filename, cov_inv[-4:, -4:])
+        np.savetxt(data_filename, parameter_means)
+    else:
+        np.savetxt(cov_filename, cov_inv[-5:, -5:])
         np.savetxt(data_filename, parameter_means)
 
 
@@ -362,17 +372,124 @@ def fitting_formula_Baumann19(ks: npt.NDArray) -> npt.NDArray:
     return res
 
 
-# def fitting_formula_Baumann19_derivwrtk(ks: npt.NDArray) -> npt.NDArray:
-#     """Compute the derivative of the fitting formula for the power spectrum phase shift
-#     (for standard model neutrinos) based on Baumann et. al., 2019, deriv. w.r.t. k (not kstar)"""
-#     kstar = 0.0324  # mpc/h
-#     phiinf = 0.227
-#     epsilon = 0.872
-#     res = (
-#         -phiinf
-#         * epsilon
-#         / (1.0 + (kstar / ks) ** (epsilon)) ** 2
-#         * (kstar / ks) ** (epsilon - 1.0)
-#         * (-kstar / ks**2)
-#     )
-#     return res
+def amplitude_modulation_geff(
+    ks: npt.NDArray, log10Geff: float, rs: float
+) -> npt.NDArray:
+    """Amplitude modulation based on Geff"""
+    amplitude_modulation = 2.03359823e-05 * (log10Geff**6) + 5.36960127e-04 * (
+        log10Geff**5
+    )
+    amplitude_modulation = (
+        amplitude_modulation
+        + 4.55360397e-03 * (log10Geff**4)
+        + 9.73443600e-03 * (log10Geff**3)
+    )
+    amplitude_modulation = (
+        amplitude_modulation
+        + -5.52743545e-02 * (log10Geff**2)
+        + -3.04729338e-01 * (log10Geff)
+        + 5.89273173e-01
+    )
+    if log10Geff < -12:
+        amplitude_modulation = 1.0
+    return amplitude_modulation
+
+
+def exponential_damping_geff(
+    ks: npt.NDArray, log10Geff: float, rs: float
+) -> npt.NDArray:
+    """Compute the exponential damping based on Geff"""
+    exponential_damp_modulation = (
+        7.84726283e-06 * (log10Geff**6)
+        + 2.33592405e-04 * (log10Geff**5)
+        + 2.55941525e-03 * (log10Geff**4)
+    )
+    exponential_damp_modulation = (
+        exponential_damp_modulation
+        + 1.28825961e-02 * (log10Geff**3)
+        + 2.80788885e-02 * (log10Geff**2)
+    )
+    exponential_damp_modulation = (
+        exponential_damp_modulation + 1.09893067e-02 * (log10Geff) + -2.89929198e-02
+    )
+    if log10Geff < -12:
+        exponential_damp_modulation = 0.0
+    exponential_damping = np.exp(ks * rs * exponential_damp_modulation)
+    return exponential_damping
+
+
+def fitting_formula_interactingneutrinos(
+    ks: npt.NDArray, log10Geff: float, rs: float
+) -> npt.NDArray:
+    """Compute the fitting formula for the power spectrum phase shift (for interacting neutrinos) based on Baumann et. al., 2019
+    and multiply by new parameters to capture impact of log10Geff on the phase shift."""
+    standard_phase = fitting_formula_Baumann19(ks)
+    amplitude_modulation = amplitude_modulation_geff(ks, log10Geff, rs)
+    if log10Geff < -12:
+        amplitude_modulation = 1.0
+    exponential_damp_modulation = exponential_damping_geff(ks, log10Geff, rs)
+    exponential_damping = np.exp(ks * rs * exponential_damp_modulation)
+    return amplitude_modulation * standard_phase * exponential_damping
+
+
+def deriv_amplitude_modulation_geff(
+    ks: npt.NDArray, log10Geff: float, rs: float
+) -> npt.NDArray:
+    """Amplitude modulation based on Geff"""
+    amplitude_modulation_der = 6 * 2.03359823e-05 * (
+        log10Geff**5
+    ) + 5 * 5.36960127e-04 * (log10Geff**4)
+    amplitude_modulation_der = (
+        amplitude_modulation_der
+        + 4 * 4.55360397e-03 * (log10Geff**3)
+        + 3 * 9.73443600e-03 * (log10Geff**2)
+    )
+    amplitude_modulation_der = (
+        amplitude_modulation_der + 2 * -5.52743545e-02 * (log10Geff) + -3.04729338e-01
+    )
+    if log10Geff < -12:
+        amplitude_modulation_der = 0.0
+    return amplitude_modulation_der
+
+
+def deriv_exponential_damping_geff(
+    ks: npt.NDArray, log10Geff: float, rs: float
+) -> npt.NDArray:
+    """Compute the exponential damping based on Geff"""
+    exponential_damp_modulation_der = (
+        6 * 7.84726283e-06 * (log10Geff**5)
+        + 5 * 2.33592405e-04 * (log10Geff**4)
+        + 4 * 2.55941525e-03 * (log10Geff**3)
+    )
+    exponential_damp_modulation_der = (
+        exponential_damp_modulation_der
+        + 3 * 1.28825961e-02 * (log10Geff**2)
+        + 2 * 2.80788885e-02 * (log10Geff)
+    )
+    exponential_damp_modulation_der = exponential_damp_modulation_der + 1.09893067e-02
+    if log10Geff < -12:
+        exponential_damp_modulation_der = 0.0
+    return exponential_damp_modulation_der
+
+
+def derivk_geff(ks: npt.NDArray, log10Geff: float, rs: float, beta: float):
+    firstterm = (
+        deriv_amplitude_modulation_geff(ks, log10Geff, rs)
+        * fitting_formula_Baumann19(ks)
+        / rs
+        * beta
+        * (exponential_damping_geff(ks, log10Geff, rs))
+    )  # A'(Geff) * beta * f(k) / rs * exp(k rs B(Geff))
+    secondterm = (
+        amplitude_modulation_geff(ks, log10Geff, rs)
+        * deriv_exponential_damping_geff(ks, log10Geff, rs)
+        * (exponential_damping_geff(ks, log10Geff, rs))
+        * fitting_formula_Baumann19(ks)
+        * beta
+        * ks
+    )
+    # A(Geff) * B'(Geff) * exp(k rs B(Geff)) * f(k) * beta * k
+
+    derivk_geff = firstterm + secondterm
+
+    return derivk_geff
