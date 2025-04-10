@@ -230,9 +230,7 @@ class CosmoResults:
             3.044 / (alpha_nu + 3.044)
         )
         log10Geff = (
-            pardict.as_float("log10Geff")
-            if "log10Geff" in pardict.keys()
-            else -np.infty
+            pardict.as_float("log10Geff") if "log10Geff" in pardict.keys() else -np.inf
         )
 
         pk_splines = [splrep(kin, pklin[i + 1]) for i in range(len(zin[1:]))]
@@ -355,11 +353,11 @@ def write_fisher(
     if beta_phi_fixed and geff_fixed:
         np.savetxt(cov_filename, cov_inv[-3:, -3:])
         np.savetxt(data_filename, parameter_means)
-    elif beta_phi_fixed and not geff_fixed:
-        np.savetxt(cov_filename, cov_inv[-4:, -4:])
+    elif not beta_phi_fixed and not geff_fixed:
+        np.savetxt(cov_filename, cov_inv[-5:, -5:])
         np.savetxt(data_filename, parameter_means)
     else:
-        np.savetxt(cov_filename, cov_inv[-5:, -5:])
+        np.savetxt(cov_filename, cov_inv[-4:, -4:])
         np.savetxt(data_filename, parameter_means)
 
 

@@ -1,5 +1,5 @@
 # GoFish
-A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. Adding ability to forecast phase shift due to free-streaming neutrinos and non-standard neutrino properties.
+A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. Adding ability to forecast phase shift due to free-streaming neutrinos and non-standard neutrino properties. Setting beta_phi_fixed = False will allow the phase shift amplitude for standard model neutrinos to vary, setting geff_fixed = False lets parameters controlling the functional form of the phase shift due to varying strength of neutrino self-interactions vary, giving a constraint on Geff where Geff controls the self-interaction strength for a simplified model.
 
 You can specify your cosmology and the properties of your tracers in the configuration file.
 You can take the 'config/test.ini' and 'input_files/DESI_BGS_nbar.txt'  that come with this package

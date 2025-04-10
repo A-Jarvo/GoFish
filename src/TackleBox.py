@@ -28,15 +28,18 @@ def Set_Bait(
     derPalpha = compute_deriv_alphas(cosmo, BAO_only=BAO_only)
     derPalpha_BAO_only = compute_deriv_alphas(cosmo, BAO_only=True)
 
-    if not beta_phi_fixed:
+    if not beta_phi_fixed and geff_fixed:
         derPbetaphi = compute_deriv_betaphiamplitude(cosmo)
-        if not geff_fixed:
-            derPgeff = compute_derive_geff(cosmo)
-            return recon, derPalpha, derPalpha_BAO_only, derPbetaphi, derPgeff
-        else:
-            return recon, derPalpha, derPalpha_BAO_only, derPbetaphi, []
+        return recon, derPalpha, derPalpha_BAO_only, derPbetaphi, []
+    elif not geff_fixed and beta_phi_fixed:
+        derPgeff = compute_derive_geff(cosmo)
+        return recon, derPalpha, derPalpha_BAO_only, [], derPgeff
+    elif not beta_phi_fixed and not geff_fixed:
+        derPbetaphi = compute_deriv_betaphiamplitude(cosmo)
+        derPgeff = compute_derive_geff(cosmo)
+        return recon, derPalpha, derPalpha_BAO_only, derPbetaphi, derPgeff
     else:
-        return recon, derPalpha, derPalpha_BAO_only, []
+        return recon, derPalpha, derPalpha_BAO_only, [], []
 
 
 def compute_recon(cosmo: CosmoResults, data: InputData):
@@ -92,14 +95,14 @@ def CovRenorm(
         jacobian = np.identity(cov.shape[0])
         jacobian[-2, -2] = parameter_means[1]
         jacobian[-1, -1] = -parameter_means[2]
-    elif not beta_phi_fixed and geff_fixed:
-        jacobian = np.identity(cov.shape[0])
-        jacobian[-3, -3] = parameter_means[1]
-        jacobian[-2, -2] = -parameter_means[2]
-    else:
+    elif not beta_phi_fixed and not geff_fixed:
         jacobian = np.identity(cov.shape[0])
         jacobian[-4, -4] = parameter_means[1]
         jacobian[-3, -3] = -parameter_means[2]
+    else:
+        jacobian = np.identity(cov.shape[0])
+        jacobian[-3, -3] = parameter_means[1]
+        jacobian[-2, -2] = -parameter_means[2]
 
     # Renormalize covariance from alpha's to DA/H
     cov_renorm = jacobian @ cov @ jacobian.T
@@ -366,10 +369,10 @@ def CastNet(
     """
 
     Shoal = np.empty((npop + 3, npop + 3, len(k), len(mu)))
-    if not beta_phi_fixed and geff_fixed:
-        Shoal = np.empty((npop + 4, npop + 4, len(k), len(mu)))
-    elif not beta_phi_fixed and not geff_fixed:
+    if not beta_phi_fixed and not geff_fixed:
         Shoal = np.empty((npop + 5, npop + 5, len(k), len(mu)))
+    elif (not beta_phi_fixed and geff_fixed) or (beta_phi_fixed and not geff_fixed):
+        Shoal = np.empty((npop + 4, npop + 4, len(k), len(mu)))
 
     # Compute the kaiser factors for each galaxy sample at the redshift as a function of mu
     kaiser = np.tile(data.bias[:, iz], (len(mu), 1)).T + cosmo.f[iz] * mu**2
@@ -552,10 +555,12 @@ def compute_full_deriv(
     """
 
     derP = np.zeros((npop + 3, npk))
-    if not beta_phi_fixed and geff_fixed:
-        derP = np.zeros((npop + 4, npk))
+    if beta_phi_fixed and geff_fixed:
+        derP = np.zeros((npop + 3, npk))
     elif not beta_phi_fixed and not geff_fixed:
         derP = np.zeros((npop + 5, npk))
+    else:
+        derP = np.zeros((npop + 4, npk))
 
     # Derivatives of all power spectra w.r.t to the bsigma8 of each population
     for i in range(npop):
@@ -587,14 +592,27 @@ def compute_full_deriv(
             for i in range(npop)
             for j in range(i, npop)
         ]
-        if not beta_phi_fixed:
+        if not beta_phi_fixed and geff_fixed:
             # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
             derP[npop + 3, :] = [
                 kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
                 for i in range(npop)
                 for j in range(i, npop)
             ]
-        if not geff_fixed:
+        if not geff_fixed and beta_phi_fixed:
+            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
+            derP[npop + 3, :] = [
+                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
+                for i in range(npop)
+                for j in range(i, npop)
+            ]
+        if not beta_phi_fixed and not geff_fixed:
+            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
+            derP[npop + 3, :] = [
+                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
+                for i in range(npop)
+                for j in range(i, npop)
+            ]
             # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
             derP[npop + 4, :] = [
                 kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
@@ -619,14 +637,27 @@ def compute_full_deriv(
             for j in range(i, npop)
         ]
 
-        if not beta_phi_fixed:
+        if not beta_phi_fixed and geff_fixed:
             # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
             derP[npop + 3, :] = [
                 kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
                 for i in range(npop)
                 for j in range(i, npop)
             ]
-        if not geff_fixed:
+        if not geff_fixed and beta_phi_fixed:
+            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
+            derP[npop + 3, :] = [
+                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
+                for i in range(npop)
+                for j in range(i, npop)
+            ]
+        if not beta_phi_fixed and not geff_fixed:
+            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
+            derP[npop + 3, :] = [
+                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
+                for i in range(npop)
+                for j in range(i, npop)
+            ]
             # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
             derP[npop + 4, :] = [
                 kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth

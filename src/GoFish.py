@@ -24,8 +24,10 @@ if __name__ == "__main__":
         logger.error(msg)
         raise (ValueError)
 
-    if not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
-        msg = "You have set beta_phi_fixed = True and geff_fixed = False. This is not allowed."
+    if not pardict.as_bool("geff_fixed") and not pardict.as_bool("BAO_only"):
+        msg = (
+            "You have set geff_fixed = False and BAO_only = False. This is not allowed."
+        )
         logger.error(msg)
         raise (ValueError)
 
@@ -62,9 +64,8 @@ if __name__ == "__main__":
     console.log("Fitting beta_phi amplitude?")
     console.log((not pardict.as_bool("beta_phi_fixed")))
 
-    if not pardict.as_bool("beta_phi_fixed"):
-        console.log("Fitting geff amplitude?")
-        console.log((not pardict.as_bool("geff_fixed")))
+    console.log("Fitting geff?")
+    console.log((not pardict.as_bool("geff_fixed")))
 
     # Precompute some things we might need for the Fisher matrix
     recon, derPalpha, derPalpha_BAO_only, derPbeta_amplitude, derPgeff = Set_Bait(
@@ -100,6 +101,15 @@ if __name__ == "__main__":
         identity = np.eye(len(data.nbar) + 4)
         console.log(
             "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   beta_err(%)"
+        )
+        erralpha = np.zeros(len(cosmo.z))
+        FullCatch = np.zeros(
+            (len(cosmo.z) * len(data.nbar) + 4, len(cosmo.z) * len(data.nbar) + 4)
+        )
+    elif not pardict.as_bool("geff_fixed"):
+        identity = np.eye(len(data.nbar) + 4)
+        console.log(
+            "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   geff_err(%)"
         )
         erralpha = np.zeros(len(cosmo.z))
         FullCatch = np.zeros(
@@ -147,12 +157,12 @@ if __name__ == "__main__":
 
             if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
                 Catch[-2:, -2:] += ExtraCatch[-2:, -2:]
-            elif pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
                 "beta_phi_fixed"
             ):
-                Catch[-3:, -3:] += ExtraCatch[-3:, -3:]
-            else:
                 Catch[-4:, -4:] += ExtraCatch[-4:, -4:]
+            else:
+                Catch[-3:, -3:] += ExtraCatch[-3:, -3:]
 
             # Add the Fisher matrix to the full fisher matrix
             FullCatch[
@@ -168,16 +178,9 @@ if __name__ == "__main__":
                     Catch[-3:, : len(data.nbar)]
                 )
                 FullCatch[-3:, -3:] += Catch[-3:, -3:]
-            if pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
-                FullCatch[
-                    iz * len(data.nbar) : (iz + 1) * len(data.nbar),
-                    -4:,
-                ] += Catch[: len(data.nbar), -4:]
-                FullCatch[-4:, iz * len(data.nbar) : (iz + 1) * len(data.nbar)] += (
-                    Catch[-4:, : len(data.nbar)]
-                )
-                FullCatch[-4:, -4:] += Catch[-4:, -4:]
-            else:
+            if not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+                "beta_phi_fixed"
+            ):
                 FullCatch[
                     iz * len(data.nbar) : (iz + 1) * len(data.nbar),
                     -5:,
@@ -186,6 +189,15 @@ if __name__ == "__main__":
                     Catch[-5:, : len(data.nbar)]
                 )
                 FullCatch[-5:, -5:] += Catch[-5:, -5:]
+            else:
+                FullCatch[
+                    iz * len(data.nbar) : (iz + 1) * len(data.nbar),
+                    -4:,
+                ] += Catch[: len(data.nbar), -4:]
+                FullCatch[-4:, iz * len(data.nbar) : (iz + 1) * len(data.nbar)] += (
+                    Catch[-4:, : len(data.nbar)]
+                )
+                FullCatch[-4:, -4:] += Catch[-4:, -4:]
 
             # Invert the Fisher matrix to get the parameter covariance matrix
             cov = dgesv(Catch, identity)[2]
@@ -194,12 +206,12 @@ if __name__ == "__main__":
             J = np.array([2.0 / 3.0, 1.0 / 3.0])
             if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
                 erralpha[iz] = 100.0 * np.sqrt(J @ cov[-2:, -2:] @ J.T)
-            elif pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
                 "beta_phi_fixed"
             ):
-                erralpha[iz] = 100.0 * np.sqrt(J @ cov[-3:-1, -3:-1] @ J.T)
-            else:
                 erralpha[iz] = 100.0 * np.sqrt(J @ cov[-4:-2, -4:-2] @ J.T)
+            else:
+                erralpha[iz] = 100.0 * np.sqrt(J @ cov[-3:-1, -3:-1] @ J.T)
 
             # Renormalise the covariance from fsigma8, alpha_perp, alpha_par to fsigma8, Da, H
             means = np.array(
@@ -220,12 +232,12 @@ if __name__ == "__main__":
             errs = None
             if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
                 errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
-            elif pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
                 "beta_phi_fixed"
             ):
-                errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / means
-            else:
                 errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-5:]) / abs(means)
+            else:
+                errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / abs(means)
             txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
                 cosmo.z[iz],
                 cosmo.volume[iz] / 1e9,
@@ -239,8 +251,14 @@ if __name__ == "__main__":
             )
             if not pardict.as_bool("beta_phi_fixed"):
                 txt = txt + "       {0:.2f}".format(errs[3])
-            if not pardict.as_bool("geff_fixed"):
+            if not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+                "beta_phi_fixed"
+            ):
                 txt = txt + "       {0:.2f}".format(errs[4])
+            elif not pardict.as_bool("geff_fixed") and pardict.as_bool(
+                "beta_phi_fixed"
+            ):
+                txt = txt + "       {0:.2f}".format(errs[3])
             console.log(txt)
 
             # Output the fisher matrix for the redshift bin
@@ -269,16 +287,24 @@ if __name__ == "__main__":
             )
             if not pardict.as_bool("beta_phi_fixed"):
                 txt = txt + "       {0:.2f}".format(errs[3])
-            if not pardict.as_bool("geff_fixed"):
+            if not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+                "beta_phi_fixed"
+            ):
                 txt = txt + "       {0:.2f}".format(errs[4])
+            elif not pardict.as_bool("geff_fixed") and pardict.as_bool(
+                "beta_phi_fixed"
+            ):
+                txt = txt + "       {0:.2f}".format(errs[3])
             console.log(txt)
 
     # Run the cosmological parameters at the centre of the combined redshift bin
     identity = np.eye(len(cosmo.z) * len(data.nbar) + 3)
-    if not pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-        identity = np.eye(len(cosmo.z) * len(data.nbar) + 4)
-    elif not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
+    if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
         identity = np.eye(len(cosmo.z) * len(data.nbar) + 5)
+    elif pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
+        identity = np.eye(len(cosmo.z) * len(data.nbar) + 3)
+    else:
+        identity = np.eye(len(cosmo.z) * len(data.nbar) + 4)
     # Combine the Fisher matrices
     cosmo = CosmoResults(
         pardict, np.atleast_1d(data.zmin[0]), np.atleast_1d(data.zmax[-1])
@@ -291,12 +317,13 @@ if __name__ == "__main__":
     # print(dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2])
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
-    erralpha = 100.0 * np.sqrt(J @ cov[-2:, -2:] @ J.T)
-
-    if not pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-        erralpha = 100.0 * np.sqrt(J @ cov[-3:-1, -3:-1] @ J.T)
+    erralpha = None
+    if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
+        erralpha = 100.0 * np.sqrt(J @ cov[-2:, -2:] @ J.T)
     elif not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
         erralpha = 100.0 * np.sqrt(J @ cov[-4:-2, -4:-2] @ J.T)
+    else:
+        erralpha = 100.0 * np.sqrt(J @ cov[-3:-1, -3:-1] @ J.T)
 
     means = np.array([cosmo.f[0] * cosmo.sigma8[0], cosmo.da[0], cosmo.h[0]])
     if not pardict.as_bool("beta_phi_fixed"):
@@ -313,10 +340,10 @@ if __name__ == "__main__":
     errs = None
     if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
         errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
-    elif pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
-        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / means
-    else:
+    elif not pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
         errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-5:]) / abs(means)
+    else:
+        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / abs(means)
     console.log("#  Combined errors")
     console.log("#=================")
     txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
@@ -332,6 +359,8 @@ if __name__ == "__main__":
     )
     if not pardict.as_bool("beta_phi_fixed"):
         txt = txt + "       {0:.2f}".format(errs[3])
-    if not pardict.as_bool("geff_fixed"):
+    if not pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
         txt = txt + "       {0:.2f}".format(errs[4])
+    elif not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
+        txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)
