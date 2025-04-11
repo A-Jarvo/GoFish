@@ -327,24 +327,24 @@ if __name__ == "__main__":
     flags = np.array(flags)
     if len(flags) > 0:
         console.log("Removing rows for zero number density")
-        FullCatchsmall = shrink_sqr_matrix(FullCatch)
-        for i in range(len(flags)):
-            console.log(
-                "Fisher matrix is singular, removing row {0} and column {0}".format(
-                    flags[i]
-                )
-            )
-            ntracer = flags[i] % len(
-                data.nbar
-            )  # the remainder here is the tracer number
-            zbin = flags[i] // len(
-                data.nbar
-            )  # the integer division here is the redshift bin number
-            console.log(
-                "Removed row for galaxy bias corresponding to tracer = {:d}, zbin = {:d}".format(
-                    ntracer, zbin
-                )
-            )
+        FullCatchsmall = shrink_sqr_matrix(FullCatch, flags)
+        # for i in range(len(flags)):
+        #     console.log(
+        #         "Fisher matrix is singular, removing row {0} and column {0}".format(
+        #             flags[i]
+        #         )
+        #     )
+        #     ntracer = flags[i] % len(
+        #         data.nbar
+        #     )  # the remainder here is the tracer number
+        #     zbin = flags[i] // len(
+        #         data.nbar
+        #     )  # the integer division here is the redshift bin number
+        #     console.log(
+        #         "Removed row for galaxy bias corresponding to tracer = {:d}, zbin = {:d}".format(
+        #             ntracer, zbin
+        #         )
+        #     )
 
     if np.linalg.det(FullCatchsmall) == 0:
         console.log("Fisher (FullCatch) matrix is singular")
@@ -396,15 +396,16 @@ if __name__ == "__main__":
             raise (ValueError)
 
     covFull = np.linalg.inv(FullCatchsmall)
+    # print(np.diag(covFull))
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
     erralpha = None
     if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-        erralpha = 100.0 * np.sqrt(J @ cov[-2:, -2:] @ J.T)
+        erralpha = 100.0 * np.sqrt(J @ covFull[-2:, -2:] @ J.T)
     elif not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
-        erralpha = 100.0 * np.sqrt(J @ cov[-4:-2, -4:-2] @ J.T)
+        erralpha = 100.0 * np.sqrt(J @ covFull[-4:-2, -4:-2] @ J.T)
     else:
-        erralpha = 100.0 * np.sqrt(J @ cov[-3:-1, -3:-1] @ J.T)
+        erralpha = 100.0 * np.sqrt(J @ covFull[-3:-1, -3:-1] @ J.T)
 
     means = np.array([cosmo.f[0] * cosmo.sigma8[0], cosmo.da[0], cosmo.h[0]])
     if not pardict.as_bool("beta_phi_fixed"):
@@ -412,8 +413,8 @@ if __name__ == "__main__":
     if not pardict.as_bool("geff_fixed"):
         means = np.append(means, cosmo.log10Geff)
 
-    cov_renorm = CovRenorm(
-        cov,
+    cov_renormFull = CovRenorm(
+        covFull,
         means,
         beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
         geff_fixed=pardict.as_bool("geff_fixed"),
@@ -421,11 +422,11 @@ if __name__ == "__main__":
 
     errs = None
     if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
+        errs = 100.0 * np.sqrt(np.diag(cov_renormFull)[-3:]) / means
     elif not pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
-        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-5:]) / abs(means)
+        errs = 100.0 * np.sqrt(np.diag(cov_renormFull)[-5:]) / abs(means)
     else:
-        errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-4:]) / abs(means)
+        errs = 100.0 * np.sqrt(np.diag(cov_renormFull)[-4:]) / abs(means)
     console.log("#  Combined errors")
     console.log("#=================")
     txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
@@ -452,14 +453,14 @@ if __name__ == "__main__":
         from chainconsumer import ChainConsumer, Chain
         import matplotlib.pyplot as plt
 
-        cov = dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2]
+        covwanted = dgesv(FullCatchsmall[-3:, -3:], identity[-3:, -3:])[2]
         means = means[-3:]
         print(means)
         c = ChainConsumer()
         c.add_chain(
             Chain.from_covariance(
                 means,
-                cov,
+                covwanted,
                 columns=[r"$D(z)$", r"$H(z)$", r"$\beta_{\phi}$"],
                 name="cov",
             )
@@ -472,13 +473,13 @@ if __name__ == "__main__":
         from chainconsumer import ChainConsumer, Chain
         import matplotlib.pyplot as plt
 
-        cov = dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2]
+        covwanted = dgesv(FullCatchsmall[-3:, -3:], identity[-3:, -3:])[2]
         means = means[-3:]
         c = ChainConsumer()
         c.add_chain(
             Chain.from_covariance(
                 means,
-                cov,
+                covwanted,
                 columns=[r"$D(z)$", r"$H(z)$", r"$\log_{10}{G_{\mathrm{eff}}}$"],
                 name="cov",
             )
