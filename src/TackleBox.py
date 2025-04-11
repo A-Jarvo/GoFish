@@ -666,3 +666,26 @@ def compute_full_deriv(
             ]
 
     return derP
+
+
+def shrink_sqr_matrix(sqr_matrix_obj):
+    """
+    Function that removed the rows and columns of a square matrix (numpy matrix) if the rows
+    and columns that a diagonal element of the matrix coincides with is zero.
+    e.g. 1 2 3 4
+         2 1 9 0   ----- >     1 2 4
+         4 5 0 9               2 1 0
+         4 3 2 1               4 3 1
+
+    The third row and column has been removed since M_(2, 2) <= 1e-7
+    """
+    a = 0
+    new_obj = sqr_matrix_obj.copy()
+    for i in (np.arange(sqr_matrix_obj.shape[0]))[::-1]:
+        # print(sqr_matrix_obj[i,i])
+        if sqr_matrix_obj[i, i] <= 1e-25:
+            a = i
+            new_obj = np.delete(new_obj, a, 0)
+            new_obj = np.delete(new_obj, a, 1)
+
+    return new_obj

@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from configobj import ConfigObj
-from TackleBox import Set_Bait, Fish, CovRenorm
+from TackleBox import Set_Bait, Fish, CovRenorm, shrink_sqr_matrix
 from ioutils import CosmoResults, InputData, write_fisher
 from scipy.linalg.lapack import dgesv
 from rich.console import Console
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         )
 
     for iz in range(len(cosmo.z)):
-        if np.any(data.nbar[:, iz] > 1.0e-30):
+        if np.any(data.nbar[:, iz] > 1.0e-30) and np.any(data.nz[:, iz] > 1.0e-30):
             Catch = Fish(
                 cosmo,
                 cosmo.kmin,
@@ -200,7 +200,8 @@ if __name__ == "__main__":
                 FullCatch[-4:, -4:] += Catch[-4:, -4:]
 
             # Invert the Fisher matrix to get the parameter covariance matrix
-            cov = dgesv(Catch, identity)[2]
+            # cov = dgesv(Catch, identity)[2]
+            cov = np.linalg.inv(Catch)
 
             # Compute the error on isotropic alpha also
             J = np.array([2.0 / 3.0, 1.0 / 3.0])
@@ -272,6 +273,9 @@ if __name__ == "__main__":
             )
 
         else:
+            console.log(
+                "Number density in this bin is zero, no data. Setting error on alpha to effectively infinite (disregard constraints on any parameters in this bin)."
+            )
             erralpha[iz] = 1.0e30
             # " {0:.2f}     {1:.4f}    {2:.3f}         -          {4:.1f}         -         {6:.1f}         -          -".format(
             txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
@@ -312,9 +316,86 @@ if __name__ == "__main__":
 
     # Invert the Combined Fisher matrix to get the parameter
     # covariance matrix and compute means and errors
-    cov = dgesv(FullCatch, identity)[2]
+    # cov = dgesv(FullCatch, identity)[2]
 
-    # print(dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2])
+    flags = []
+    FullCatchsmall = FullCatch.copy()
+    for fi in np.arange(len(data.nz)):
+        for fj in np.arange(len(data.nz[0])):
+            if data.nz[fi][fj] <= 1.0e-25:
+                flags.append(fj * len(data.nz) + fi)
+    flags = np.array(flags)
+    if len(flags) > 0:
+        console.log("Removing rows for zero number density")
+        FullCatchsmall = shrink_sqr_matrix(FullCatch)
+        for i in range(len(flags)):
+            console.log(
+                "Fisher matrix is singular, removing row {0} and column {0}".format(
+                    flags[i]
+                )
+            )
+            ntracer = flags[i] % len(
+                data.nbar
+            )  # the remainder here is the tracer number
+            zbin = flags[i] // len(
+                data.nbar
+            )  # the integer division here is the redshift bin number
+            console.log(
+                "Removed row for galaxy bias corresponding to tracer = {:d}, zbin = {:d}".format(
+                    ntracer, zbin
+                )
+            )
+
+    if np.linalg.det(FullCatchsmall) == 0:
+        console.log("Fisher (FullCatch) matrix is singular")
+        console.log(
+            "Checking if fisher information is zero for galaxy bias in any rows (must remove these)?"
+        )
+        flags = np.where(np.diag(FullCatchsmall) <= 1.0e-25)[0]
+        if len(flags) > 0:
+            if (
+                np.sum(
+                    np.where(np.array(flags) > (len(data.nbar) * len(data.nbar[0]) - 1))
+                )
+                > 0
+            ):
+                console.log(
+                    "Fisher matrix is singular and information about some cosmo parameters of interest is zero."
+                )
+                console.log(
+                    "This is a problem, and shouldn't happen, please check your input data."
+                )
+                console.log("Fisher matrix diagonals:")
+                console.log(np.diag(FullCatchsmall))
+                raise (ValueError)
+            else:
+                FullCatchsmall = shrink_sqr_matrix(FullCatchsmall)
+                for i in range(len(flags)):
+                    console.log(
+                        "Fisher matrix is singular, removing row {0} and column {0}".format(
+                            flags[i]
+                        )
+                    )
+                    ntracer = flags[i] % len(
+                        data.nbar
+                    )  # the remainder here is the tracer number
+                    zbin = flags[i] // len(
+                        data.nbar
+                    )  # the integer division here is the redshift bin number
+                    console.log(
+                        "Removed row for galaxy bias corresponding to tracer = {:d}, zbin = {:d}".format(
+                            ntracer, zbin
+                        )
+                    )
+                    console.log("Make sure this makes sense with your input data.")
+        else:
+            console.log("Fisher matrix is singular and no zero rows found.")
+            console.log("This is a problem - please check your input data.")
+            console.log("Fisher matrix diagonals:")
+            console.log(np.diag(FullCatchsmall))
+            raise (ValueError)
+
+    covFull = np.linalg.inv(FullCatchsmall)
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
     erralpha = None
@@ -337,6 +418,7 @@ if __name__ == "__main__":
         beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
         geff_fixed=pardict.as_bool("geff_fixed"),
     )
+
     errs = None
     if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
         errs = 100.0 * np.sqrt(np.diag(cov_renorm)[-3:]) / means
@@ -364,3 +446,42 @@ if __name__ == "__main__":
     elif not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
         txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)
+
+    if not pardict.as_bool("beta_phi_fixed"):
+        # plot the contour for beta_phi and alpha_iso
+        from chainconsumer import ChainConsumer, Chain
+        import matplotlib.pyplot as plt
+
+        cov = dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2]
+        means = means[-3:]
+        print(means)
+        c = ChainConsumer()
+        c.add_chain(
+            Chain.from_covariance(
+                means,
+                cov,
+                columns=[r"$D(z)$", r"$H(z)$", r"$\beta_{\phi}$"],
+                name="cov",
+            )
+        )
+        c.plotter.plot()
+        plt.show()
+
+    if not pardict.as_bool("geff_fixed"):
+        # plot the contour for geff and alpha_iso
+        from chainconsumer import ChainConsumer, Chain
+        import matplotlib.pyplot as plt
+
+        cov = dgesv(FullCatch[-3:, -3:], identity[-3:, -3:])[2]
+        means = means[-3:]
+        c = ChainConsumer()
+        c.add_chain(
+            Chain.from_covariance(
+                means,
+                cov,
+                columns=[r"$D(z)$", r"$H(z)$", r"$\log_{10}{G_{\mathrm{eff}}}$"],
+                name="cov",
+            )
+        )
+        c.plotter.plot()
+        plt.show()
