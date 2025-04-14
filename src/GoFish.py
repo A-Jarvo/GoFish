@@ -3,9 +3,9 @@ import numpy as np
 from configobj import ConfigObj
 from TackleBox import Set_Bait, Fish, CovRenorm, shrink_sqr_matrix
 from ioutils import CosmoResults, InputData, write_fisher
-from scipy.linalg.lapack import dgesv
 from rich.console import Console
 from loguru import logger
+from combined_forecasts_DESI import combined_forecasts_cross_correlations_DESI
 
 if __name__ == "__main__":
     console = Console()
@@ -18,6 +18,8 @@ if __name__ == "__main__":
         pardict["beta_phi_fixed"] = True
     if "geff_fixed" not in pardict:
         pardict["geff_fixed"] = True
+    if "do_combined_DESI" not in pardict:
+        pardict["do_combined_DESI"] = False
 
     if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("BAO_only"):
         msg = "You have set beta_phi_fixed = False and BAO_only = False. This is not allowed."
@@ -49,7 +51,9 @@ if __name__ == "__main__":
 
     console.log(
         "Total number of objects:",
-        np.sum(np.array([data.nbar[i] * cosmo.volume for i in range(len(data.nbar))])),
+        np.nansum(
+            np.array([data.nbar[i] * cosmo.volume for i in range(len(data.nbar))])
+        ),
     )
     console.log("Total volume:", np.sum(cosmo.volume))
 
@@ -87,9 +91,9 @@ if __name__ == "__main__":
     FullCatch = np.zeros(
         (len(cosmo.z) * len(data.nbar) + 3, len(cosmo.z) * len(data.nbar) + 3)
     )
-    identity = np.eye(len(data.nbar) + 3)
+    # identity = np.eye(len(data.nbar) + 3)
     if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
-        identity = np.eye(len(data.nbar) + 5)
+        # identity = np.eye(len(data.nbar) + 5)
         console.log(
             "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   beta_err(%)   log10Geff_err(%)"
         )
@@ -98,7 +102,7 @@ if __name__ == "__main__":
             (len(cosmo.z) * len(data.nbar) + 5, len(cosmo.z) * len(data.nbar) + 5)
         )
     elif not pardict.as_bool("beta_phi_fixed"):
-        identity = np.eye(len(data.nbar) + 4)
+        # identity = np.eye(len(data.nbar) + 4)
         console.log(
             "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   beta_err(%)"
         )
@@ -107,7 +111,7 @@ if __name__ == "__main__":
             (len(cosmo.z) * len(data.nbar) + 4, len(cosmo.z) * len(data.nbar) + 4)
         )
     elif not pardict.as_bool("geff_fixed"):
-        identity = np.eye(len(data.nbar) + 4)
+        # identity = np.eye(len(data.nbar) + 4)
         console.log(
             "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)  Da(Mpc/h)  Da_err(%)  H(km/s/Mpc)  H_err(%)   alpha_err(%)   geff_err(%)"
         )
@@ -301,14 +305,6 @@ if __name__ == "__main__":
                 txt = txt + "       {0:.2f}".format(errs[3])
             console.log(txt)
 
-    # Run the cosmological parameters at the centre of the combined redshift bin
-    identity = np.eye(len(cosmo.z) * len(data.nbar) + 3)
-    if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
-        identity = np.eye(len(cosmo.z) * len(data.nbar) + 5)
-    elif pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-        identity = np.eye(len(cosmo.z) * len(data.nbar) + 3)
-    else:
-        identity = np.eye(len(cosmo.z) * len(data.nbar) + 4)
     # Combine the Fisher matrices
     cosmo = CosmoResults(
         pardict, np.atleast_1d(data.zmin[0]), np.atleast_1d(data.zmax[-1])
@@ -316,35 +312,18 @@ if __name__ == "__main__":
 
     # Invert the Combined Fisher matrix to get the parameter
     # covariance matrix and compute means and errors
-    # cov = dgesv(FullCatch, identity)[2]
 
     flags = []
     FullCatchsmall = FullCatch.copy()
     for fi in np.arange(len(data.nz)):
         for fj in np.arange(len(data.nz[0])):
             if data.nz[fi][fj] <= 1.0e-25:
-                flags.append(fj * len(data.nz) + fi)
+                flags.append(fi * len(data.nz) + fj)
     flags = np.array(flags)
+
     if len(flags) > 0:
         console.log("Removing rows for zero number density")
         FullCatchsmall = shrink_sqr_matrix(FullCatch, flags)
-        # for i in range(len(flags)):
-        #     console.log(
-        #         "Fisher matrix is singular, removing row {0} and column {0}".format(
-        #             flags[i]
-        #         )
-        #     )
-        #     ntracer = flags[i] % len(
-        #         data.nbar
-        #     )  # the remainder here is the tracer number
-        #     zbin = flags[i] // len(
-        #         data.nbar
-        #     )  # the integer division here is the redshift bin number
-        #     console.log(
-        #         "Removed row for galaxy bias corresponding to tracer = {:d}, zbin = {:d}".format(
-        #             ntracer, zbin
-        #         )
-        #     )
 
     if np.linalg.det(FullCatchsmall) == 0:
         console.log("Fisher (FullCatch) matrix is singular")
@@ -396,7 +375,6 @@ if __name__ == "__main__":
             raise (ValueError)
 
     covFull = np.linalg.inv(FullCatchsmall)
-    # print(np.diag(covFull))
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
     erralpha = None
@@ -418,6 +396,15 @@ if __name__ == "__main__":
         means,
         beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
         geff_fixed=pardict.as_bool("geff_fixed"),
+    )
+
+    write_fisher(
+        pardict,
+        cov_renormFull,
+        1e30,
+        means,
+        pardict.as_bool("beta_phi_fixed"),
+        pardict.as_bool("geff_fixed"),
     )
 
     errs = None
@@ -448,41 +435,185 @@ if __name__ == "__main__":
         txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)
 
-    if not pardict.as_bool("beta_phi_fixed"):
-        # plot the contour for beta_phi and alpha_iso
-        from chainconsumer import ChainConsumer, Chain
-        import matplotlib.pyplot as plt
-
-        covwanted = dgesv(FullCatchsmall[-3:, -3:], identity[-3:, -3:])[2]
-        means = means[-3:]
-        print(means)
-        c = ChainConsumer()
-        c.add_chain(
-            Chain.from_covariance(
-                means,
-                covwanted,
-                columns=[r"$D(z)$", r"$H(z)$", r"$\beta_{\phi}$"],
-                name="cov",
-            )
+    cov_main = None
+    if pardict["do_combined_DESI"] == "True":
+        # Compute the cross-correlations between the DESI tracers
+        fisher_main = combined_forecasts_cross_correlations_DESI(
+            pardict,
+            data,
+            beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
+            geff_fixed=pardict.as_bool("geff_fixed"),
         )
-        c.plotter.plot()
-        plt.show()
 
-    if not pardict.as_bool("geff_fixed"):
-        # plot the contour for geff and alpha_iso
-        from chainconsumer import ChainConsumer, Chain
-        import matplotlib.pyplot as plt
+        # get the forecasts for fsigma8, beta_phi, geff
 
-        covwanted = dgesv(FullCatchsmall[-3:, -3:], identity[-3:, -3:])[2]
-        means = means[-3:]
-        c = ChainConsumer()
-        c.add_chain(
-            Chain.from_covariance(
-                means,
-                covwanted,
-                columns=[r"$D(z)$", r"$H(z)$", r"$\log_{10}{G_{\mathrm{eff}}}$"],
-                name="cov",
-            )
+        cov_main = np.linalg.inv(fisher_main)
+
+        means_main = np.array(
+            [cosmo.f[0] * cosmo.sigma8[0], cosmo.beta_phi, cosmo.log10Geff]
         )
-        c.plotter.plot()
-        plt.show()
+
+        errs = None
+        if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
+            errs = 100.0 * np.sqrt(np.diag(cov_main)[-1:]) / means[-1:]
+        elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            "beta_phi_fixed"
+        ):
+            errs = 100.0 * np.sqrt(np.diag(cov_main)[-3:]) / abs(means[-3:])
+        else:
+            errs = 100.0 * np.sqrt(np.diag(cov_main)[-2:]) / abs(means[-2:])
+        console.log("#  Combined errors for DESI forecasts")
+        console.log("#=================")
+        txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}".format(
+            cosmo.z[0],
+            cosmo.volume[0] / 1e9,
+            means[0],
+            errs[0],
+        )
+        if not pardict.as_bool("beta_phi_fixed"):
+            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   beta_phi_err(%)")
+            txt = txt + "       {0:.2f}".format(errs[1])
+        if not pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
+            console.log(
+                "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   beta_phi_err(%)   log10Geff_err(%)"
+            )
+            txt = txt + "       {0:.2f}".format(errs[2])
+        elif not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
+            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   log10Geff_err(%)")
+            txt = txt + "       {0:.2f}".format(errs[1])
+        else:
+            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)")
+        console.log(txt)
+
+        # make some pretty contour plots
+        if not pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
+            # plot the contour for beta_phi and alpha_iso
+            from chainconsumer import ChainConsumer, Chain
+            import matplotlib.pyplot as plt
+
+            covwanted = cov_main[-10:, -10:]
+            means = np.array(
+                [
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.f[0] * cosmo.sigma8[0],
+                    cosmo.beta_phi,
+                ]
+            )
+            c = ChainConsumer()
+            c.add_chain(
+                Chain.from_covariance(
+                    means,
+                    covwanted,
+                    columns=[
+                        r"$D(z_1)$",
+                        r"$H(z_1)$",
+                        r"$D(z_2)$",
+                        r"$H(z_2)$",
+                        r"$D(z_3)$",
+                        r"$H(z_3)$",
+                        r"$D(z_4)$",
+                        r"$H(z_4)$",
+                        r"f(z)\sigma_8(z)",
+                        r"$\beta_{\phi}$",
+                    ],
+                    name="cov",
+                )
+            )
+            c.plotter.plot()
+            plt.show()
+
+        elif not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
+            # plot the contour for beta_phi and alpha_iso
+            from chainconsumer import ChainConsumer, Chain
+            import matplotlib.pyplot as plt
+
+            covwanted = cov_main[-10:, -10:]
+            means = np.array(
+                [
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.f[0] * cosmo.sigma8[0],
+                    cosmo.log10Geff,
+                ]
+            )
+            c = ChainConsumer()
+            c.add_chain(
+                Chain.from_covariance(
+                    means,
+                    covwanted,
+                    columns=[
+                        r"$D(z_1)$",
+                        r"$H(z_1)$",
+                        r"$D(z_2)$",
+                        r"$H(z_2)$",
+                        r"$D(z_3)$",
+                        r"$H(z_3)$",
+                        r"$D(z_4)$",
+                        r"$H(z_4)$",
+                        r"f(z)\sigma_8(z)",
+                        r"$\log_{10}G_{\mathrm{eff}}$",
+                    ],
+                    name="cov",
+                )
+            )
+            c.plotter.plot()
+            plt.show()
+
+        elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            "beta_phi_fixed"
+        ):
+            # plot the contour for beta_phi and alpha_iso
+            from chainconsumer import ChainConsumer, Chain
+            import matplotlib.pyplot as plt
+
+            covwanted = cov_main[-11:, -11:]
+            means = np.array(
+                [
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.h[0],
+                    cosmo.da[0],
+                    cosmo.f[0] * cosmo.sigma8[0],
+                    cosmo.log10Geff,
+                ]
+            )
+            c = ChainConsumer()
+            c.add_chain(
+                Chain.from_covariance(
+                    means,
+                    covwanted,
+                    columns=[
+                        r"$D(z_1)$",
+                        r"$H(z_1)$",
+                        r"$D(z_2)$",
+                        r"$H(z_2)$",
+                        r"$D(z_3)$",
+                        r"$H(z_3)$",
+                        r"$D(z_4)$",
+                        r"$H(z_4)$",
+                        r"f(z)\sigma_8(z)",
+                        r"$\beta_{\phi}$",
+                        r"$\log_{10}G_{\mathrm{eff}}$",
+                    ],
+                    name="cov",
+                )
+            )
+            c.plotter.plot()
+            plt.show()

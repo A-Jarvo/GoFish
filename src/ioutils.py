@@ -337,7 +337,7 @@ def write_fisher(
     pardict: configobj.ConfigObj
         A dictionary containing input parameters
     cov_inv: np.ndarray
-        A 2D covariance matrix. fs8, da, h are the last three columns/rows
+        A covariance matrix. fs8, da, h are the last three columns/rows
     redshift: np.float
         Mean redshift of that sample. Used in the filename
     parameter_means: list
@@ -347,17 +347,25 @@ def write_fisher(
     Will write a 3x3 covariance matrix of fs8, da, h and the true values of fs8, da, h.
     """
 
-    cov_filename = pardict["outputfile"] + "_cov_" + format(redshift, ".2f") + ".txt"
-    data_filename = pardict["outputfile"] + "_data_" + format(redshift, ".2f") + ".txt"
+    cov_filename = (
+        pardict["outputfile"] + "_cov_" + format(redshift, ".2f") + ".txt"
+        if not redshift == 1e30
+        else pardict["outputfile"] + "_cov_agg.txt"
+    )
+    data_filename = (
+        pardict["outputfile"] + "_data_" + format(redshift, ".2f") + ".txt"
+        if not redshift == 1e30
+        else pardict["outputfile"] + "_dat_agg.txt"
+    )
 
     if beta_phi_fixed and geff_fixed:
-        np.savetxt(cov_filename, cov_inv[-3:, -3:])
+        np.savetxt(cov_filename, cov_inv)
         np.savetxt(data_filename, parameter_means)
     elif not beta_phi_fixed and not geff_fixed:
-        np.savetxt(cov_filename, cov_inv[-5:, -5:])
+        np.savetxt(cov_filename, cov_inv)
         np.savetxt(data_filename, parameter_means)
     else:
-        np.savetxt(cov_filename, cov_inv[-4:, -4:])
+        np.savetxt(cov_filename, cov_inv)
         np.savetxt(data_filename, parameter_means)
 
 
