@@ -205,7 +205,12 @@ if __name__ == "__main__":
 
             # Invert the Fisher matrix to get the parameter covariance matrix
             # cov = dgesv(Catch, identity)[2]
-            cov = np.linalg.inv(Catch)
+            Catch_small = Catch.copy()
+            Catch_small = shrink_sqr_matrix(Catch_small)
+            Catch_small[Catch_small < 1.0e-25] = (
+                0.0  # remove small values making the inversion very unstable
+            )
+            cov = np.linalg.inv(Catch_small)
 
             # Compute the error on isotropic alpha also
             J = np.array([2.0 / 3.0, 1.0 / 3.0])
@@ -318,12 +323,15 @@ if __name__ == "__main__":
     for fi in np.arange(len(data.nz)):
         for fj in np.arange(len(data.nz[0])):
             if data.nz[fi][fj] <= 1.0e-25:
-                flags.append(fi * len(data.nz) + fj)
-    flags = np.array(flags)
+                flags.append(fj * len(data.nz) + fi)
+    flags = np.sort(np.array(flags))
 
     if len(flags) > 0:
         console.log("Removing rows for zero number density")
         FullCatchsmall = shrink_sqr_matrix(FullCatch, flags)
+        FullCatchsmall[FullCatchsmall < 1.0e-25] = (
+            0.0  # remove small values making the inversion very unstable
+        )
 
     if np.linalg.det(FullCatchsmall) == 0:
         console.log("Fisher (FullCatch) matrix is singular")
@@ -331,6 +339,7 @@ if __name__ == "__main__":
             "Checking if fisher information is zero for galaxy bias in any rows (must remove these)?"
         )
         flags = np.where(np.diag(FullCatchsmall) <= 1.0e-25)[0]
+        print(flags)
         if len(flags) > 0:
             if (
                 np.sum(
@@ -372,6 +381,7 @@ if __name__ == "__main__":
             console.log("This is a problem - please check your input data.")
             console.log("Fisher matrix diagonals:")
             console.log(np.diag(FullCatchsmall))
+            np.savetxt("Fisher_matrix_removed_rows.txt", FullCatchsmall)
             raise (ValueError)
 
     covFull = np.linalg.inv(FullCatchsmall)
@@ -414,8 +424,12 @@ if __name__ == "__main__":
         errs = 100.0 * np.sqrt(np.diag(cov_renormFull)[-5:]) / abs(means)
     else:
         errs = 100.0 * np.sqrt(np.diag(cov_renormFull)[-4:]) / abs(means)
-    console.log("#  Combined errors")
-    console.log("#=================")
+    console.log(
+        "#  Combined errors when aggregating all redshift bins and tracers for Da, H, fsigma8"
+    )
+    console.log(
+        "#========================================================================================"
+    )
     txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}         {4:.1f}       {5:.2f}        {6:.1f}       {7:.2f}       {8:.3f}".format(
         cosmo.z[0],
         cosmo.volume[0] / 1e9,
@@ -437,6 +451,20 @@ if __name__ == "__main__":
 
     cov_main = None
     if pardict["do_combined_DESI"] == "True":
+        console.log(
+            "#  Combined errors when aggregating and accounting for cross-correlations between DESI tracers (seperate Da, H, fsigma8 for each bin, etc.)"
+        )
+        console.log("#  Combining data across specific sets of redshift bins.")
+        console.log(
+            "#========================================================================================"
+        )
+
+        cosmo = CosmoResults(
+            pardict,
+            np.array([0.0, 0.40, 0.6, 0.8, 1.1]),
+            np.array([0.4, 0.50, 0.8, 1.1, 1.9]),
+        )  # middle of BGS bin, middle of LRG1 bin, middle of LRG2 bin, middle of LRG3/ELG1 bin, middle of
+
         # Compute the cross-correlations between the DESI tracers
         fisher_main = combined_forecasts_cross_correlations_DESI(
             pardict,
@@ -450,40 +478,45 @@ if __name__ == "__main__":
         cov_main = np.linalg.inv(fisher_main)
 
         means_main = np.array(
-            [cosmo.f[0] * cosmo.sigma8[0], cosmo.beta_phi, cosmo.log10Geff]
+            [
+                data.bias[0][2] * cosmo.sigma8[0],
+                cosmo.f[0] * cosmo.sigma8[0],
+                cosmo.da[0],
+                cosmo.h[0],
+                data.bias[1][4] * cosmo.sigma8[1],
+                cosmo.f[1] * cosmo.sigma8[1],
+                cosmo.da[1],
+                cosmo.h[1],
+                data.bias[2][7] * cosmo.sigma8[2],
+                cosmo.f[2] * cosmo.sigma8[2],
+                cosmo.da[2],
+                cosmo.h[2],
+                data.bias[2][10] * cosmo.sigma8[3],
+                cosmo.f[3] * cosmo.sigma8[3],
+                cosmo.da[3],
+                cosmo.h[3],
+                data.bias[3][15] * cosmo.sigma8[4],
+                cosmo.f[4] * cosmo.sigma8[4],
+                cosmo.da[4],
+                cosmo.h[4],
+            ],
         )
 
-        errs = None
-        if pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
-            errs = 100.0 * np.sqrt(np.diag(cov_main)[-1:]) / means[-1:]
-        elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
-            "beta_phi_fixed"
-        ):
-            errs = 100.0 * np.sqrt(np.diag(cov_main)[-3:]) / abs(means[-3:])
-        else:
-            errs = 100.0 * np.sqrt(np.diag(cov_main)[-2:]) / abs(means[-2:])
+        if not pardict.as_bool("beta_phi_fixed"):
+            means_main = np.append(means_main, cosmo.beta_phi)
+        if not pardict.as_bool("geff_fixed"):
+            means_main = np.append(means_main, cosmo.log10Geff)
+
+        errs = 100.0 * np.sqrt(np.diag(cov_main)) / means_main
+
         console.log("#  Combined errors for DESI forecasts")
         console.log("#=================")
-        txt = " {0:.2f}    {1:.4f}     {2:.3f}       {3:.2f}".format(
-            cosmo.z[0],
-            cosmo.volume[0] / 1e9,
-            means[0],
-            errs[0],
-        )
-        if not pardict.as_bool("beta_phi_fixed"):
-            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   beta_phi_err(%)")
-            txt = txt + "       {0:.2f}".format(errs[1])
-        if not pardict.as_bool("geff_fixed") and not pardict.as_bool("beta_phi_fixed"):
+        for i in np.arange(len(means_main)):
             console.log(
-                "#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   beta_phi_err(%)   log10Geff_err(%)"
+                "mean = {0:.3f} and percentage err = {1:.2f}".format(
+                    means_main[i], errs[i]
+                )
             )
-            txt = txt + "       {0:.2f}".format(errs[2])
-        elif not pardict.as_bool("geff_fixed") and pardict.as_bool("beta_phi_fixed"):
-            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)   log10Geff_err(%)")
-            txt = txt + "       {0:.2f}".format(errs[1])
-        else:
-            console.log("#  z  V(Gpc/h)^3  fsigma8  fsigma8_err(%)")
-        console.log(txt)
 
         # make some pretty contour plots
         if not pardict.as_bool("beta_phi_fixed") and pardict.as_bool("geff_fixed"):
@@ -491,36 +524,32 @@ if __name__ == "__main__":
             from chainconsumer import ChainConsumer, Chain
             import matplotlib.pyplot as plt
 
-            covwanted = cov_main[-10:, -10:]
-            means = np.array(
-                [
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.f[0] * cosmo.sigma8[0],
-                    cosmo.beta_phi,
-                ]
-            )
             c = ChainConsumer()
             c.add_chain(
                 Chain.from_covariance(
-                    means,
-                    covwanted,
+                    means_main,
+                    cov_main,
                     columns=[
+                        r"$b(z_1)\sigma_8(z_1)$",
+                        r"f(z_1)\sigma_8(z_1)",
                         r"$D(z_1)$",
                         r"$H(z_1)$",
+                        r"$b(z_2)\sigma_8(z_2)$",
+                        r"f(z_2)\sigma_8(z_2)",
                         r"$D(z_2)$",
                         r"$H(z_2)$",
+                        r"$b(z_3)\sigma_8(z_3)$",
+                        r"f(z_3)\sigma_8(z_3)",
                         r"$D(z_3)$",
                         r"$H(z_3)$",
+                        r"$b(z_4)\sigma_8(z_4)$",
+                        r"f(z_4)\sigma_8(z_4)",
                         r"$D(z_4)$",
                         r"$H(z_4)$",
-                        r"f(z)\sigma_8(z)",
+                        r"$b(z_5)\sigma_8(z_5)$",
+                        r"f(z_5)\sigma_8(z_5)",
+                        r"$D(z_5)$",
+                        r"$H(z_5)$",
                         r"$\beta_{\phi}$",
                     ],
                     name="cov",
@@ -534,36 +563,32 @@ if __name__ == "__main__":
             from chainconsumer import ChainConsumer, Chain
             import matplotlib.pyplot as plt
 
-            covwanted = cov_main[-10:, -10:]
-            means = np.array(
-                [
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.f[0] * cosmo.sigma8[0],
-                    cosmo.log10Geff,
-                ]
-            )
             c = ChainConsumer()
             c.add_chain(
                 Chain.from_covariance(
-                    means,
-                    covwanted,
+                    means_main,
+                    cov_main,
                     columns=[
+                        r"$b(z_1)\sigma_8(z_1)$",
+                        r"f(z_1)\sigma_8(z_1)",
                         r"$D(z_1)$",
                         r"$H(z_1)$",
+                        r"$b(z_2)\sigma_8(z_2)$",
+                        r"f(z_2)\sigma_8(z_2)",
                         r"$D(z_2)$",
                         r"$H(z_2)$",
+                        r"$b(z_3)\sigma_8(z_3)$",
+                        r"f(z_3)\sigma_8(z_3)",
                         r"$D(z_3)$",
                         r"$H(z_3)$",
+                        r"$b(z_4)\sigma_8(z_4)$",
+                        r"f(z_4)\sigma_8(z_4)",
                         r"$D(z_4)$",
                         r"$H(z_4)$",
-                        r"f(z)\sigma_8(z)",
+                        r"$b(z_5)\sigma_8(z_5)$",
+                        r"f(z_5)\sigma_8(z_5)",
+                        r"$D(z_5)$",
+                        r"$H(z_5)$",
                         r"$\log_{10}G_{\mathrm{eff}}$",
                     ],
                     name="cov",
@@ -579,38 +604,72 @@ if __name__ == "__main__":
             from chainconsumer import ChainConsumer, Chain
             import matplotlib.pyplot as plt
 
-            covwanted = cov_main[-11:, -11:]
-            means = np.array(
-                [
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.h[0],
-                    cosmo.da[0],
-                    cosmo.f[0] * cosmo.sigma8[0],
-                    cosmo.log10Geff,
-                ]
-            )
             c = ChainConsumer()
             c.add_chain(
                 Chain.from_covariance(
-                    means,
-                    covwanted,
+                    means_main,
+                    cov_main,
                     columns=[
+                        r"$b(z_1)\sigma_8(z_1)$",
+                        r"f(z_1)\sigma_8(z_1)",
                         r"$D(z_1)$",
                         r"$H(z_1)$",
+                        r"$b(z_2)\sigma_8(z_2)$",
+                        r"f(z_2)\sigma_8(z_2)",
                         r"$D(z_2)$",
                         r"$H(z_2)$",
+                        r"$b(z_3)\sigma_8(z_3)$",
+                        r"f(z_3)\sigma_8(z_3)",
                         r"$D(z_3)$",
                         r"$H(z_3)$",
+                        r"$b(z_4)\sigma_8(z_4)$",
+                        r"f(z_4)\sigma_8(z_4)",
                         r"$D(z_4)$",
                         r"$H(z_4)$",
-                        r"f(z)\sigma_8(z)",
+                        r"$b(z_5)\sigma_8(z_5)$",
+                        r"f(z_5)\sigma_8(z_5)",
+                        r"$D(z_5)$",
+                        r"$H(z_5)$",
                         r"$\beta_{\phi}$",
                         r"$\log_{10}G_{\mathrm{eff}}$",
+                    ],
+                    name="cov",
+                )
+            )
+            c.plotter.plot()
+            plt.show()
+
+        else:
+            # plot the contour for beta_phi and alpha_iso
+            from chainconsumer import ChainConsumer, Chain
+            import matplotlib.pyplot as plt
+
+            c = ChainConsumer()
+            c.add_chain(
+                Chain.from_covariance(
+                    means_main,
+                    cov_main,
+                    columns=[
+                        r"$b(z_1)\sigma_8(z_1)$",
+                        r"f(z_1)\sigma_8(z_1)",
+                        r"$D(z_1)$",
+                        r"$H(z_1)$",
+                        r"$b(z_2)\sigma_8(z_2)$",
+                        r"f(z_2)\sigma_8(z_2)",
+                        r"$D(z_2)$",
+                        r"$H(z_2)$",
+                        r"$b(z_3)\sigma_8(z_3)$",
+                        r"f(z_3)\sigma_8(z_3)",
+                        r"$D(z_3)$",
+                        r"$H(z_3)$",
+                        r"$b(z_4)\sigma_8(z_4)$",
+                        r"f(z_4)\sigma_8(z_4)",
+                        r"$D(z_4)$",
+                        r"$H(z_4)$",
+                        r"$b(z_5)\sigma_8(z_5)$",
+                        r"f(z_5)\sigma_8(z_5)",
+                        r"$D(z_5)$",
+                        r"$H(z_5)$",
                     ],
                     name="cov",
                 )

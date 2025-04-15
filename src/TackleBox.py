@@ -682,7 +682,7 @@ def shrink_sqr_matrix(sqr_matrix_obj: npt.NDArray, flags: npt.NDArray = np.array
     a = 0
     new_obj = sqr_matrix_obj.copy()
 
-    if len(flags) > 0:
+    if len(flags) >= 1:
         new_obj = np.delete(new_obj, flags, 0)
         new_obj = np.delete(new_obj, flags, 1)
 
