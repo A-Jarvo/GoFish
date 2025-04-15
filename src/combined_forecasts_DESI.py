@@ -9,12 +9,20 @@ def combined_forecasts_cross_correlations_DESI(
     beta_phi_fixed: bool = True,
     geff_fixed: bool = True,
 ):
-    shared_bins = {
+    # shared_bins = {
+    #     "BGS": [0.0, 0.4, 4],  # zmin, zmax, number bins being joined
+    #     "LRG1": [0.4, 0.5, 1],
+    #     "LRG2": [0.6, 0.8, 2],
+    #     "LRG3_ELG1": [0.8, 1.1, 3],
+    #     "QSOs": [1.1, 1.9, 8],
+    # }
+
+    shared_bins = {  # validation paper
         "BGS": [0.0, 0.4, 4],  # zmin, zmax, number bins being joined
-        "LRG1": [0.4, 0.5, 1],
-        "LRG2": [0.6, 0.8, 2],
-        "LRG3_ELG1": [0.8, 1.1, 3],
-        "QSOs": [1.1, 1.9, 8],
+        "LRG1": [0.4, 0.6, 2],
+        "LRG2": [0.6, 1.1, 5],
+        "LRG3_ELG1": [1.1, 1.6, 5],
+        "QSOs": [1.6, 2.1, 5],
     }
 
     num_params = (

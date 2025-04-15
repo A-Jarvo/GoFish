@@ -2,7 +2,6 @@ import numpy as np
 from findiff import FinDiff
 from scipy.integrate import simpson as simps
 from scipy.interpolate import splrep, splev
-from scipy.linalg.lapack import dgesv
 from loguru import logger
 from ioutils import CosmoResults, InputData, fitting_formula_Baumann19, derivk_geff
 import numpy.typing as npt
@@ -391,22 +390,21 @@ def CastNet(
     pksmoothval = splev(k, cosmo.pksmooth[iz])
     coords = [[kval, muval] for kval in k for muval in mu]
     derPalphaval, derPbetaval, derPgeffval = [], [], []
+    derPbetaval = (
+        [derPbeta[0](coords).reshape(len(k), len(mu))] if not beta_phi_fixed else []
+    )
+    derPgeffval = (
+        [derPgeff[0](coords).reshape(len(k), len(mu))] if not geff_fixed else []
+    )
     if BAO_only:
         derPalphaval = [derPalpha[i](coords).reshape(len(k), len(mu)) for i in range(2)]
-        derPbetaval = (
-            [derPbeta[0](coords).reshape(len(k), len(mu))] if not beta_phi_fixed else []
-        )
-        derPgeffval = (
-            [derPgeff[0](coords).reshape(len(k), len(mu))] if not geff_fixed else []
-        )
+
     else:
         derPalphaval = [
             derPalpha[i](coords).reshape(len(k), len(mu))
             * (cosmo.sigma8[iz] / cosmo.sigma8[0]) ** 2
             for i in range(2)
         ]
-        derPbetaval = [np.ones((len(k), len(mu)))]
-        derPgeffval = [np.ones((len(k), len(mu)))]
 
     # Loop over each k and mu value and compute the Fisher information for the cosmological parameters
     for i, kval in enumerate(k):
@@ -489,8 +487,8 @@ def compute_inv_cov(
                 pk24 += 1.0 / nbar[n2]
             covariance[ps1, ps2] = pk13 * pk24 + pk14 * pk23
 
-    identity = np.eye(npk)
-    cov_inv = dgesv(covariance, identity)[2]
+    # identity = np.eye(npk)
+    cov_inv = np.linalg.inv(covariance)  # dgesv(covariance, identity)[2]
 
     return covariance, cov_inv
 
@@ -578,6 +576,35 @@ def compute_full_deriv(
         for j in range(i, npop)
     ]
 
+    if not beta_phi_fixed and geff_fixed:
+        # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
+        derP[npop + 3, :] = [
+            kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+
+    if not geff_fixed and beta_phi_fixed:
+        # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
+        derP[npop + 3, :] = [
+            kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+    if not beta_phi_fixed and not geff_fixed:
+        # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
+        derP[npop + 3, :] = [
+            kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+        # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
+        derP[npop + 4, :] = [
+            kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
+            for i in range(npop)
+            for j in range(i, npop)
+        ]
+
     # Derivatives of all power spectra w.r.t the alphas centred on alpha_per = alpha_par = 1.0
     if BAO_only:
         # For BAO_only we only include information on the alpha parameters
@@ -592,33 +619,7 @@ def compute_full_deriv(
             for i in range(npop)
             for j in range(i, npop)
         ]
-        if not beta_phi_fixed and geff_fixed:
-            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-        if not geff_fixed and beta_phi_fixed:
-            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-        if not beta_phi_fixed and not geff_fixed:
-            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 4, :] = [
-                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
+
     else:
         # Derivative of mu'**2 w.r.t alpha_perp. Derivative w.r.t. alpha_par is -dmudalpha
         dmudalpha = 2.0 * mu**2 * (1.0 - mu**2)
@@ -636,34 +637,6 @@ def compute_full_deriv(
             for i in range(npop)
             for j in range(i, npop)
         ]
-
-        if not beta_phi_fixed and geff_fixed:
-            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-        if not geff_fixed and beta_phi_fixed:
-            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-        if not beta_phi_fixed and not geff_fixed:
-            # Derivative of beta_phi amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 3, :] = [
-                kaiser[i] * kaiser[j] * derPbeta[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
-            # Derivative of geff amplitude w.r.t. alpha_perp and alpha_par
-            derP[npop + 4, :] = [
-                kaiser[i] * kaiser[j] * derPgeff[0] * pksmooth
-                for i in range(npop)
-                for j in range(i, npop)
-            ]
 
     return derP
 
@@ -688,7 +661,7 @@ def shrink_sqr_matrix(sqr_matrix_obj: npt.NDArray, flags: npt.NDArray = np.array
 
     else:
         for i in (np.arange(sqr_matrix_obj.shape[0]))[::-1]:
-            if sqr_matrix_obj[i][i] <= 1e-13:
+            if abs(sqr_matrix_obj[i][i]) <= 1e-13:
                 a = i
                 new_obj = np.delete(new_obj, a, 0)
                 new_obj = np.delete(new_obj, a, 1)

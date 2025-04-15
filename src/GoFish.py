@@ -125,7 +125,7 @@ if __name__ == "__main__":
         )
 
     for iz in range(len(cosmo.z)):
-        if np.any(data.nbar[:, iz] > 1.0e-30) and np.any(data.nz[:, iz] > 1.0e-30):
+        if np.any(data.nbar[:, iz] > 1.0e-30):  #  and np.any(data.nz[:, iz] > 1.0e-30):
             Catch = Fish(
                 cosmo,
                 cosmo.kmin,
@@ -207,7 +207,7 @@ if __name__ == "__main__":
             # cov = dgesv(Catch, identity)[2]
             Catch_small = Catch.copy()
             Catch_small = shrink_sqr_matrix(Catch_small)
-            Catch_small[Catch_small < 1.0e-25] = (
+            Catch_small[abs(Catch_small) < 1.0e-25] = (
                 0.0  # remove small values making the inversion very unstable
             )
             cov = np.linalg.inv(Catch_small)
@@ -322,14 +322,14 @@ if __name__ == "__main__":
     FullCatchsmall = FullCatch.copy()
     for fi in np.arange(len(data.nz)):
         for fj in np.arange(len(data.nz[0])):
-            if data.nz[fi][fj] <= 1.0e-25:
+            if data.nz[fi][fj] <= 1.0e-10:
                 flags.append(fj * len(data.nz) + fi)
     flags = np.sort(np.array(flags))
 
     if len(flags) > 0:
         console.log("Removing rows for zero number density")
         FullCatchsmall = shrink_sqr_matrix(FullCatch, flags)
-        FullCatchsmall[FullCatchsmall < 1.0e-25] = (
+        FullCatchsmall[abs(FullCatchsmall) < 1.0e-25] = (
             0.0  # remove small values making the inversion very unstable
         )
 
@@ -338,7 +338,7 @@ if __name__ == "__main__":
         console.log(
             "Checking if fisher information is zero for galaxy bias in any rows (must remove these)?"
         )
-        flags = np.where(np.diag(FullCatchsmall) <= 1.0e-25)[0]
+        flags = np.where(abs(np.diag(FullCatchsmall)) <= 1.0e-25)[0]
         print(flags)
         if len(flags) > 0:
             if (
@@ -384,6 +384,7 @@ if __name__ == "__main__":
             np.savetxt("Fisher_matrix_removed_rows.txt", FullCatchsmall)
             raise (ValueError)
 
+    # np.savetxt("Fisher_matrix_removed_rows.txt", FullCatchsmall)
     covFull = np.linalg.inv(FullCatchsmall)
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
@@ -449,6 +450,9 @@ if __name__ == "__main__":
         txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)
 
+    print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-3:, -3:]))))
+    print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-1:, -1:]))))
+
     cov_main = None
     if pardict["do_combined_DESI"] == "True":
         console.log(
@@ -461,8 +465,8 @@ if __name__ == "__main__":
 
         cosmo = CosmoResults(
             pardict,
-            np.array([0.0, 0.40, 0.6, 0.8, 1.1]),
-            np.array([0.4, 0.50, 0.8, 1.1, 1.9]),
+            np.array([0.0, 0.40, 0.6, 1.1, 1.6]),
+            np.array([0.4, 0.60, 1.1, 1.6, 2.1]),
         )  # middle of BGS bin, middle of LRG1 bin, middle of LRG2 bin, middle of LRG3/ELG1 bin, middle of
 
         # Compute the cross-correlations between the DESI tracers
@@ -483,19 +487,19 @@ if __name__ == "__main__":
                 cosmo.f[0] * cosmo.sigma8[0],
                 cosmo.da[0],
                 cosmo.h[0],
-                data.bias[1][4] * cosmo.sigma8[1],
+                data.bias[1][5] * cosmo.sigma8[1],
                 cosmo.f[1] * cosmo.sigma8[1],
                 cosmo.da[1],
                 cosmo.h[1],
-                data.bias[2][7] * cosmo.sigma8[2],
+                data.bias[1][9] * cosmo.sigma8[2],
                 cosmo.f[2] * cosmo.sigma8[2],
                 cosmo.da[2],
                 cosmo.h[2],
-                data.bias[2][10] * cosmo.sigma8[3],
+                data.bias[2][14] * cosmo.sigma8[3],
                 cosmo.f[3] * cosmo.sigma8[3],
                 cosmo.da[3],
                 cosmo.h[3],
-                data.bias[3][15] * cosmo.sigma8[4],
+                data.bias[3][19] * cosmo.sigma8[4],
                 cosmo.f[4] * cosmo.sigma8[4],
                 cosmo.da[4],
                 cosmo.h[4],
