@@ -182,7 +182,7 @@ if __name__ == "__main__":
                     Catch[-3:, : len(data.nbar)]
                 )
                 FullCatch[-3:, -3:] += Catch[-3:, -3:]
-            if not pardict.as_bool("geff_fixed") and not pardict.as_bool(
+            elif not pardict.as_bool("geff_fixed") and not pardict.as_bool(
                 "beta_phi_fixed"
             ):
                 FullCatch[
@@ -450,8 +450,9 @@ if __name__ == "__main__":
         txt = txt + "       {0:.2f}".format(errs[3])
     console.log(txt)
 
-    print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-3:, -3:]))))
-    print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-1:, -1:]))))
+    # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-3:, -3:]))))
+    # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-1:, -1:]))))
+    # np.savetxt('Fisher_matrix.txt', FullCatch)
 
     cov_main = None
     if pardict["do_combined_DESI"] == "True":
