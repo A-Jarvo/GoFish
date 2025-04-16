@@ -512,7 +512,7 @@ if __name__ == "__main__":
         if not pardict.as_bool("geff_fixed"):
             means_main = np.append(means_main, cosmo.log10Geff)
 
-        errs = 100.0 * np.sqrt(np.diag(cov_main)) / means_main
+        errs = 100.0 * np.sqrt(np.diag(cov_main)) / abs(means_main)
 
         console.log("#  Combined errors for DESI forecasts")
         console.log("#=================")

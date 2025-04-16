@@ -122,13 +122,23 @@ def combined_forecasts_cross_correlations_DESI(
                 fisher_main[b * 4 : (b * 4 + 1), -num:] += np.sum(
                     np.array(
                         [fisher[i, -num:] for i in np.arange(fisher_shape_bsigma8)]
-                    )
+                    ),
+                    axis=0,
                 )
-                fisher_main[-num:, b * 4 : (b * 4 + 1)] += np.sum(
-                    np.array(
-                        [fisher[-num:, i] for i in np.arange(fisher_shape_bsigma8)]
-                    )
-                )  # cross bsigma8 and beta_phi/geff
+
+                fisher_main[-num:, b * 4 : (b * 4 + 1)] += np.array(
+                    [
+                        np.sum(
+                            np.array(
+                                [
+                                    fisher[-num:, i]
+                                    for i in np.arange(fisher_shape_bsigma8)
+                                ]
+                            ),
+                            axis=0,
+                        )
+                    ]
+                ).T  # cross bsigma8 and beta_phi/geff
 
             # cross terms with fsigma8
 
@@ -150,9 +160,9 @@ def combined_forecasts_cross_correlations_DESI(
                 fisher_main[b * 4 + 1 : (b * 4 + 1) + 1, -num:] += fisher[
                     index_fsigma8, -num:
                 ]
-                fisher_main[-num:, b * 4 + 1 : (b * 4 + 1) + 1] += fisher[
-                    -num:, index_fsigma8
-                ]  # cross fsigma8 and beta_phi/geff
+                fisher_main[-num:, b * 4 + 1 : (b * 4 + 1) + 1] += np.array(
+                    [fisher[-num:, index_fsigma8]]
+                ).T  # cross fsigma8 and beta_phi/geff
 
             # cross terms with da
             fisher_main[b * 4 + 2 : (b * 4 + 1) + 2, b * 4 + 3 : (b * 4 + 1) + 3] += (
@@ -166,17 +176,17 @@ def combined_forecasts_cross_correlations_DESI(
                 fisher_main[b * 4 + 2 : (b * 4 + 1) + 2, -num:] += fisher[
                     index_da, -num:
                 ]  # cross da and beta_phi/geff
-                fisher_main[-num:, b * 4 + 2 : (b * 4 + 1) + 2] += fisher[
-                    -num:, index_da
-                ]
+                fisher_main[-num:, b * 4 + 2 : (b * 4 + 1) + 2] += np.array(
+                    [fisher[-num:, index_da]]
+                ).T
 
             # cross terms with H
             if not beta_phi_fixed or not geff_fixed:
                 fisher_main[b * 4 + 3 : (b * 4 + 1) + 3, -num:] += fisher[
                     index_H, -num:
                 ]  # cross H and beta_phi/geff
-                fisher_main[-num:, b * 4 + 3 : (b * 4 + 1) + 3] += fisher[
-                    -num:, index_H
-                ]
+                fisher_main[-num:, b * 4 + 3 : (b * 4 + 1) + 3] += np.array(
+                    [fisher[-num:, index_H]]
+                ).T
 
     return fisher_main
