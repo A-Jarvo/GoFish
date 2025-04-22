@@ -16,11 +16,13 @@ class InputData:
             df["volume"].to_numpy() if "volume" in df.keys() else -np.ones(len(df))
         )
 
-        self.nbar = (
-            np.array([df[i] for i in df.keys() if "nbar" in i]) * 1e-3
-            if "nbar" in df.keys()
-            else None
-        )
+        self.nbar = np.array([df[i] for i in df.keys() if "nbar" in i]) * 1e-3
+        if len(self.nbar) == 0:
+            self.nbar = None
+        else:
+            self.nbar[self.nbar == 0] = (
+                1.0e-40  # Set any zero number densities to a small number
+            )
 
         # Sort out any tracers without galaxies in a particular redshift bin
         self.remove_null_tracers()
@@ -191,7 +193,7 @@ class CosmoResults:
         pars.InitPower.set_params(
             As=float(parlinear["A_s"]), ns=float(parlinear["n_s"])
         )
-        pars.set_matter_power(redshifts=np.concatenate([zmid[::-1], [0.0]]), kmax=5.0)
+        pars.set_matter_power(redshifts=np.concatenate([zmid[::-1], [0.0]]), kmax=10.0)
         pars.set_cosmology(
             H0=parlinear["H0"],
             omch2=float(parlinear["omega_cdm"]),
@@ -210,7 +212,7 @@ class CosmoResults:
 
         # Get the power spectrum
         kin, zin, pklin = results.get_matter_power_spectrum(
-            minkh=2.0e-5, maxkh=5.0, npoints=2000
+            minkh=2.0e-5, maxkh=10.0, npoints=2000
         )
 
         # Get some derived quantities
@@ -225,17 +227,19 @@ class CosmoResults:
         r_d = results.get_derived_params()["rdrag"]
         f = fsigma8 / sigma8
         growth = sigma8 / results.get_sigma8()[-1]
-        alpha_nu = (8.0 / 7.0) * (11.0 / 4.0) ** (4.0 / 3.0)
-        beta_phi = (parlinear["Neff"] / (alpha_nu + parlinear["Neff"])) / (
-            3.044 / (alpha_nu + 3.044)
-        )
+        # alpha_nu = (8.0 / 7.0) * (11.0 / 4.0) ** (4.0 / 3.0)
+        beta_phi = parlinear["beta_phi"] if "beta_phi" in parlinear.keys() else 1.0
         log10Geff = (
             pardict.as_float("log10Geff") if "log10Geff" in pardict.keys() else -np.inf
         )
 
-        pk_splines = [splrep(kin, pklin[i + 1]) for i in range(len(zin[1:]))]
+        kshift = (
+            fitting_formula_interactingneutrinos(kin, log10Geff, r_d)
+            - fitting_formula_Baumann19(kin)
+        ) / r_d
+        pk_splines = [splrep((kin + kshift), pklin[i + 1]) for i in range(len(zin[1:]))]
         pksmooth_splines = [
-            splrep(kin, self.smooth_hinton2017(kin, pklin[i + 1]))
+            splrep(kin + kshift, self.smooth_hinton2017(kin, pklin[i + 1]))
             for i in range(len(zin[1:]))
         ]
 
@@ -284,7 +288,7 @@ class CosmoResults:
         ks: npt.NDArray,
         pk: npt.NDArray,
         degree: float = 13,
-        sigma: float = 1,
+        sigma: float = 0.5,
         weight: float = 0.5,
     ):
         """Smooth power spectrum based on Hinton et. al., 2017 polynomial method
@@ -396,7 +400,7 @@ def amplitude_modulation_geff(
         + -3.04729338e-01 * (log10Geff)
         + 5.89273173e-01
     )
-    if log10Geff < -12:
+    if log10Geff < -6:
         amplitude_modulation = 1.0
     return amplitude_modulation
 
@@ -418,7 +422,7 @@ def exponential_damping_geff(
     exponential_damp_modulation = (
         exponential_damp_modulation + 1.09893067e-02 * (log10Geff) + -2.89929198e-02
     )
-    if log10Geff < -12:
+    if log10Geff < -6:
         exponential_damp_modulation = 0.0
     exponential_damping = np.exp(ks * rs * exponential_damp_modulation)
     return exponential_damping
@@ -431,11 +435,10 @@ def fitting_formula_interactingneutrinos(
     and multiply by new parameters to capture impact of log10Geff on the phase shift."""
     standard_phase = fitting_formula_Baumann19(ks)
     amplitude_modulation = amplitude_modulation_geff(ks, log10Geff, rs)
-    if log10Geff < -12:
+    if log10Geff < -6:
         amplitude_modulation = 1.0
     exponential_damp_modulation = exponential_damping_geff(ks, log10Geff, rs)
-    exponential_damping = np.exp(ks * rs * exponential_damp_modulation)
-    return amplitude_modulation * standard_phase * exponential_damping
+    return amplitude_modulation * standard_phase * exponential_damp_modulation
 
 
 def deriv_amplitude_modulation_geff(
@@ -453,7 +456,7 @@ def deriv_amplitude_modulation_geff(
     amplitude_modulation_der = (
         amplitude_modulation_der + 2 * -5.52743545e-02 * (log10Geff) + -3.04729338e-01
     )
-    if log10Geff < -12:
+    if log10Geff < -6:
         amplitude_modulation_der = 0.0
     return amplitude_modulation_der
 
@@ -473,7 +476,7 @@ def deriv_exponential_damping_geff(
         + 2 * 2.80788885e-02 * (log10Geff)
     )
     exponential_damp_modulation_der = exponential_damp_modulation_der + 1.09893067e-02
-    if log10Geff < -12:
+    if log10Geff < -6:
         exponential_damp_modulation_der = 0.0
     return exponential_damp_modulation_der
 

@@ -43,7 +43,6 @@ if __name__ == "__main__":
         cosmo.volume = data.volume * 1.0e9
 
     console.log("computed CAMB linear matter power spectra for redshifts.")
-
     # Convert the nz to nbar in (h/Mpc)^3
     if data.nbar is None:  # we got a file with nz instead of nbar, so do a conversion
         data.convert_nbar(cosmo.volume, float(pardict["skyarea"]))
@@ -207,7 +206,7 @@ if __name__ == "__main__":
             # cov = dgesv(Catch, identity)[2]
             Catch_small = Catch.copy()
             Catch_small = shrink_sqr_matrix(Catch_small)
-            Catch_small[abs(Catch_small) < 1.0e-25] = (
+            Catch_small[abs(Catch_small) < 1.0e-20] = (
                 0.0  # remove small values making the inversion very unstable
             )
             cov = np.linalg.inv(Catch_small)
@@ -322,14 +321,14 @@ if __name__ == "__main__":
     FullCatchsmall = FullCatch.copy()
     for fi in np.arange(len(data.nz)):
         for fj in np.arange(len(data.nz[0])):
-            if data.nz[fi][fj] <= 1.0e-10:
+            if data.nz[fi][fj] <= 1.0e-20:
                 flags.append(fj * len(data.nz) + fi)
     flags = np.sort(np.array(flags))
 
     if len(flags) > 0:
         console.log("Removing rows for zero number density")
         FullCatchsmall = shrink_sqr_matrix(FullCatch, flags)
-        FullCatchsmall[abs(FullCatchsmall) < 1.0e-25] = (
+        FullCatchsmall[abs(FullCatchsmall) < 1.0e-20] = (
             0.0  # remove small values making the inversion very unstable
         )
 
@@ -338,7 +337,7 @@ if __name__ == "__main__":
         console.log(
             "Checking if fisher information is zero for galaxy bias in any rows (must remove these)?"
         )
-        flags = np.where(abs(np.diag(FullCatchsmall)) <= 1.0e-25)[0]
+        flags = np.where(abs(np.diag(FullCatchsmall)) <= 1.0e-20)[0]
         print(flags)
         if len(flags) > 0:
             if (
@@ -453,6 +452,13 @@ if __name__ == "__main__":
     # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-3:, -3:]))))
     # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-1:, -1:]))))
     # np.savetxt('Fisher_matrix.txt', FullCatch)
+
+    if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("geff_fixed"):
+        print("Correlation coefficient beta and log10Geff:")
+        print(
+            cov_renormFull[-1, -2]
+            / (np.sqrt(cov_renormFull[-1, -1]) * np.sqrt(cov_renormFull[-2, -2]))
+        )
 
     cov_main = None
     if pardict["do_combined_DESI"] == "True":

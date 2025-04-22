@@ -3,7 +3,12 @@ from findiff import FinDiff
 from scipy.integrate import simpson as simps
 from scipy.interpolate import splrep, splev
 from loguru import logger
-from ioutils import CosmoResults, InputData, fitting_formula_Baumann19, derivk_geff
+from ioutils import (
+    CosmoResults,
+    InputData,
+    derivk_geff,
+    fitting_formula_interactingneutrinos,
+)
 import numpy.typing as npt
 
 
@@ -159,7 +164,12 @@ def compute_deriv_betaphiamplitude(cosmo: CosmoResults):
         )
 
     derPk = FinDiff(0, dk, acc=4)(pkarray)[order]
-    dk_dbeta = fitting_formula_Baumann19(cosmo.k) / cosmo.r_d
+    # dk_dbeta = fitting_formula_Baumann19(cosmo.k) / cosmo.r_d
+    dk_dbeta = (
+        fitting_formula_interactingneutrinos(cosmo.k, cosmo.log10Geff, cosmo.r_d)
+        / cosmo.r_d
+    )
+
     derPbeta_amplitude = np.outer(
         derPk * dk_dbeta, np.ones(len(mu))
     )  # dP(k')/dbeta = dP/dk' * dk'/dbeta , dk'/dbeta = f(k')/r_s
