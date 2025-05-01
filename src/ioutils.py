@@ -291,8 +291,8 @@ class CosmoResults:
         ks: npt.NDArray,
         pk: npt.NDArray,
         degree: float = 13,
-        sigma: float = 0.5,
-        weight: float = 0.5,
+        sigma: float = 0.75,
+        weight: float = 1.0,
     ):
         """Smooth power spectrum based on Hinton et. al., 2017 polynomial method
 
