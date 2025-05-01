@@ -228,16 +228,19 @@ class CosmoResults:
         f = fsigma8 / sigma8
         growth = sigma8 / results.get_sigma8()[-1]
         # alpha_nu = (8.0 / 7.0) * (11.0 / 4.0) ** (4.0 / 3.0)
-        beta_phi = parlinear["beta_phi"] if "beta_phi" in parlinear.keys() else 1.0
+        beta_phi = (
+            pardict.as_float("beta_phi") if "beta_phi" in parlinear.keys() else 1.0
+        )
         log10Geff = (
             pardict.as_float("log10Geff") if "log10Geff" in pardict.keys() else -np.inf
         )
 
         kshift = (
-            fitting_formula_interactingneutrinos(kin, log10Geff, r_d)
+            beta_phi * fitting_formula_interactingneutrinos(kin, log10Geff, r_d)
             - fitting_formula_Baumann19(kin)
         ) / r_d
         pk_splines = [splrep((kin + kshift), pklin[i + 1]) for i in range(len(zin[1:]))]
+
         pksmooth_splines = [
             splrep(kin + kshift, self.smooth_hinton2017(kin, pklin[i + 1]))
             for i in range(len(zin[1:]))
