@@ -114,6 +114,15 @@ class CosmoResults:
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
+        if "sigma_perp_damping" in pardict.keys():
+            self.Sigma_perp = np.ones(len(self.z)) * float(
+                pardict["sigma_perp_damping"]
+            )
+        if "sigma_par_damping" in pardict.keys():
+            self.Sigma_par = np.ones(len(self.z)) * float(pardict["sigma_par_damping"])
+
+        print(self.Sigma_perp, self.Sigma_par)
+
         self.kmin = np.amax([float(pardict["kmin"]), self.k[0]])
         self.kmax = float(pardict["kmax"])
 

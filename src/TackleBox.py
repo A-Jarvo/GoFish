@@ -22,9 +22,10 @@ def Set_Bait(
     BAO_only: bool = False,
     beta_phi_fixed: bool = True,
     geff_fixed: bool = True,
+    pre_recon: bool = False,
 ):
     # Compute the reconstruction factors for each redshift bin. Has shape len(z)
-    recon = compute_recon(cosmo, data)
+    recon = compute_recon(cosmo, data, pre_recon)
 
     # Precompute some derivative terms. The derivative of P(k) w.r.t. to alpha_perp/alpha_par
     # only needs doing once and then can be scaled by the ratios of sigma8 values. This works because we
@@ -46,12 +47,15 @@ def Set_Bait(
         return recon, derPalpha, derPalpha_BAO_only, [], []
 
 
-def compute_recon(cosmo: CosmoResults, data: InputData):
+def compute_recon(cosmo: CosmoResults, data: InputData, pre_recon: bool = False):
     muconst = 0.6
     kconst = 0.14
 
     nP = np.array([0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 6.0, 10.0])
     r_factor = np.array([1.0, 0.9, 0.8, 0.7, 0.6, 0.55, 0.52, 0.5])
+    if pre_recon:
+        r_factor = np.ones(len(r_factor))
+
     r_spline = splrep(
         nP, r_factor
     )  # spline for reconstruction factor and signal to noise ratio

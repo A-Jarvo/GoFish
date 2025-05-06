@@ -20,6 +20,8 @@ if __name__ == "__main__":
         pardict["geff_fixed"] = True
     if "do_combined_DESI" not in pardict:
         pardict["do_combined_DESI"] = False
+    if "pre_recon" not in pardict:
+        pardict["pre_recon"] = False
 
     if not pardict.as_bool("beta_phi_fixed") and not pardict.as_bool("BAO_only"):
         msg = "You have set beta_phi_fixed = False and BAO_only = False. This is not allowed."
@@ -77,6 +79,7 @@ if __name__ == "__main__":
         BAO_only=pardict.as_bool("BAO_only"),
         beta_phi_fixed=pardict.as_bool("beta_phi_fixed"),
         geff_fixed=pardict.as_bool("geff_fixed"),
+        pre_recon=pardict.as_bool("pre_recon"),
     )
     console.log(
         "Computed reconstruction factors and derivatives of the power spectrum w.r.t. forecast parameters."
@@ -141,11 +144,14 @@ if __name__ == "__main__":
                 pardict.as_bool("geff_fixed"),
             )
 
+            kmax_BAO_only = 0.5
+            if "kmax_bao_only" in pardict:
+                kmax_BAO_only = pardict.as_float("kmax_bao_only")
             # Add on BAO only information from kmax to k = 0.5 Mpc/h but only for alpha_perp and alpha_par
             ExtraCatch = Fish(
                 cosmo,
                 cosmo.kmax,
-                0.5,
+                kmax_BAO_only,
                 data,
                 iz,
                 recon[iz],
@@ -385,6 +391,10 @@ if __name__ == "__main__":
 
     # np.savetxt("Fisher_matrix_removed_rows.txt", FullCatchsmall)
     covFull = np.linalg.inv(FullCatchsmall)
+
+    # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-3:, -3:]))))
+    # print(np.sqrt(np.diag(np.linalg.inv(FullCatchsmall[-2:, -2:]))))
+    # print(np.sqrt(np.sqrt(1.0/FullCatchsmall[-1, -1])))
 
     J = np.array([2.0 / 3.0, 1.0 / 3.0])
     erralpha = None
