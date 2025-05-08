@@ -231,7 +231,7 @@ class CosmoResults:
         rmax = results.comoving_radial_distance(zhigh) * pars.H0 / 100.0
         volume = area / 3.0 * (rmax**3 - rmin**3)
         da = results.angular_diameter_distance(zmid)
-        dz_comoving = results.comoving_radial_distance(zmid)
+        dz_comoving = results.comoving_radial_distance(zmid) * pars.H0 / 100.0
         hubble = results.hubble_parameter(zmid)
         fsigma8 = results.get_fsigma8()[::-1][1:]
         sigma8 = results.get_sigma8()[::-1][1:]

@@ -62,7 +62,11 @@ if __name__ == "__main__":
             np.array([data.nbar[i] * cosmo.volume for i in range(len(data.nbar))])
         ),
     )
-    console.log("Total volume:", np.sum(cosmo.volume))
+    console.log(
+        "Total volume:",
+        np.sum(cosmo.volume) / (1e9),
+        np.sum(cosmo.volume) / (1e9 * (float(pardict["h"])) ** 3),
+    )
 
     # Scales the bias so that it goes as b/G(z)
     if pardict.as_bool("scale_bias"):
@@ -96,15 +100,18 @@ if __name__ == "__main__":
     console.log(
         "Computing the effective volume for the entire dataset passed in the config file:"
     )
+    Veff = compute_effective_volume(
+        cosmo,
+        data,
+        0,
+        float(pardict["skyarea"]) * (np.pi / 180.0) ** 2,
+        cosmo.kmin,
+        cosmo.kmax,
+    )
+
     console.log(
-        compute_effective_volume(
-            cosmo,
-            data,
-            0,
-            float(pardict["skyarea"]) * (np.pi / 180.0) ** 2,
-            cosmo.kmin,
-            cosmo.kmax,
-        )
+        Veff / (1e9),
+        Veff / (1e9 * (float(pardict["h"])) ** 3),
     )
 
     # Loop over redshifts and compute the Fisher matrix and output the 3x3 matrix
