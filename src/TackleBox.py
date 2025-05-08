@@ -75,6 +75,74 @@ def compute_recon(cosmo: CosmoResults, data: InputData, pre_recon: bool = False)
     return recon
 
 
+def compute_effective_volume(
+    cosmo: CosmoResults,
+    data: InputData,
+    tracer: int,
+    skyarea: float,
+    kmin: float,
+    kmax: float,
+):
+    """
+    Compute triple integral over volume of ( nP/(1 + nP))^2 dmu r^2 dr k^2 dk - as volume eff. for a given k bin.
+    Then add up over each k bin.
+    """
+
+    nmu = 100
+    muvec = np.linspace(0.0, 1.0, nmu)
+    recon = compute_recon(cosmo, data)
+
+    dist_with_z = cosmo.dz_comoving  # r(z) vector for redshift vector
+
+    integral_over_z = np.zeros(len(cosmo.z))  # store integrand over z as array
+
+    for j, z in enumerate(cosmo.z):
+        signal_int_muvec = np.zeros(nmu)  # store integrand over mu as array
+
+        kminn = np.maximum(
+            2.0 * np.pi / dist_with_z[j], kmin
+        )  # largest scale set by r(z)
+
+        ks_wanted = np.linspace(kminn, kmax, 1000)
+
+        for i, mu in enumerate(muvec):
+            kaiser_vec = data.bias[tracer][j] + cosmo.f[j] * mu**2  # kaiser factor
+            nbar = data.nbar[tracer][j]  # number density
+            Dpar = mu**2 * ks_wanted**2 * cosmo.Sigma_par[j] ** 2
+            Dperp = (1.0 - mu**2) * ks_wanted**2 * cosmo.Sigma_perp[j] ** 2
+            Dfactor = np.exp(
+                -(recon[j] ** 2) * (Dpar + Dperp) / 2.0
+            )  # damping (nonlinear structure growth, accounts for reconstruction noise)
+            pkk = splev(ks_wanted, cosmo.pk[j])  # linear matter power
+
+            Pk = (
+                pkk * kaiser_vec**2 * Dfactor**2
+            )  # redshift space power spectrum at fixed k, mu - vector with varying z
+            nP = nbar * Pk
+            signal_atk = (nP / (1.0 + nP)) ** 2  # signal as a function of z
+            integral_over_k = simps(signal_atk * (ks_wanted**2), ks_wanted) / simps(
+                ks_wanted**2, ks_wanted
+            )  # integral over k,
+            # normalized by integral over k^2 dk
+
+            signal_int_muvec[i] = integral_over_k  # store integrand over mu
+
+        integral_over_z[j] = simps(
+            signal_int_muvec, muvec
+        )  # integral over mu with simpson rule
+
+    effective_volume = simps(
+        integral_over_z * (dist_with_z**2), dist_with_z
+    )  # integral over r(z) with simpson rule
+    if len(cosmo.z) < 2:
+        effective_volume = integral_over_z * (
+            (cosmo.rmax**3) / 3.0 - (cosmo.rmin**3) / 3.0
+        )  # for a single redshift bin....
+    effective_volume *= skyarea  # angular area in steradians s
+
+    return effective_volume
+
+
 def CovRenorm(
     cov: npt.NDArray,
     parameter_means: npt.NDArray,

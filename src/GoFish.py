@@ -1,7 +1,13 @@
 import sys
 import numpy as np
 from configobj import ConfigObj
-from TackleBox import Set_Bait, Fish, CovRenorm, shrink_sqr_matrix
+from TackleBox import (
+    Set_Bait,
+    Fish,
+    CovRenorm,
+    shrink_sqr_matrix,
+    compute_effective_volume,
+)
 from ioutils import CosmoResults, InputData, write_fisher
 from rich.console import Console
 from loguru import logger
@@ -86,6 +92,20 @@ if __name__ == "__main__":
     )
     console.log("#  Data recon factor")
     console.log(recon)
+
+    console.log(
+        "Computing the effective volume for the entire dataset passed in the config file:"
+    )
+    console.log(
+        compute_effective_volume(
+            cosmo,
+            data,
+            0,
+            float(pardict["skyarea"]) * (np.pi / 180.0) ** 2,
+            cosmo.kmin,
+            cosmo.kmax,
+        )
+    )
 
     # Loop over redshifts and compute the Fisher matrix and output the 3x3 matrix
 

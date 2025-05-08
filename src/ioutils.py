@@ -111,6 +111,9 @@ class CosmoResults:
             self.r_d,
             self.beta_phi,
             self.log10Geff,
+            self.dz_comoving,
+            self.rmin,
+            self.rmax,
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
@@ -120,8 +123,6 @@ class CosmoResults:
             )
         if "sigma_par_damping" in pardict.keys():
             self.Sigma_par = np.ones(len(self.z)) * float(pardict["sigma_par_damping"])
-
-        print(self.Sigma_perp, self.Sigma_par)
 
         self.kmin = np.amax([float(pardict["kmin"]), self.k[0]])
         self.kmax = float(pardict["kmax"])
@@ -230,6 +231,7 @@ class CosmoResults:
         rmax = results.comoving_radial_distance(zhigh) * pars.H0 / 100.0
         volume = area / 3.0 * (rmax**3 - rmin**3)
         da = results.angular_diameter_distance(zmid)
+        dz_comoving = results.comoving_radial_distance(zmid)
         hubble = results.hubble_parameter(zmid)
         fsigma8 = results.get_fsigma8()[::-1][1:]
         sigma8 = results.get_sigma8()[::-1][1:]
@@ -269,6 +271,9 @@ class CosmoResults:
             r_d,
             beta_phi,
             log10Geff,
+            dz_comoving,
+            rmin,
+            rmax,
         )
 
     def get_Sigmas(self, f: npt.NDArray, sigma8: npt.NDArray):
