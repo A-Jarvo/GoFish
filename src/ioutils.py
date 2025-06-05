@@ -117,6 +117,9 @@ class CosmoResults:
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
+        print(self.Sigma_perp)
+        print(self.Sigma_par)
+
         if "sigma_perp_damping" in pardict.keys():
             self.Sigma_perp = np.ones(len(self.z)) * float(
                 pardict["sigma_perp_damping"]
@@ -195,6 +198,12 @@ class CosmoResults:
         if "w0_fld" in parlinear.keys():
             pars.set_dark_energy(
                 w=float(parlinear["w0_fld"]), dark_energy_model="fluid"
+            )
+        elif "wa_fld" in parlinear.keys() and "w0_fld" in parlinear.keys():
+            pars.set_dark_energy(
+                w=float(parlinear["w0_fld"]),
+                wa=float(parlinear["wa_fld"]),
+                dark_energy_model="ppf",
             )
         if "Neff" in parlinear.keys():
             parlinear["Neff"] = float(parlinear["Neff"])
