@@ -117,8 +117,8 @@ class CosmoResults:
         ) = self.run_camb(pardict, zlow, zhigh)
         self.Sigma_perp, self.Sigma_par = self.get_Sigmas(self.f, self.sigma8)
 
-        print(self.Sigma_perp)
-        print(self.Sigma_par)
+        # print(self.Sigma_perp)
+        # print(self.Sigma_par)
 
         if "sigma_perp_damping" in pardict.keys():
             self.Sigma_perp = np.ones(len(self.z)) * float(
@@ -245,26 +245,41 @@ class CosmoResults:
         fsigma8 = results.get_fsigma8()[::-1][1:]
         sigma8 = results.get_sigma8()[::-1][1:]
         r_d = results.get_derived_params()["rdrag"]
+        print("baryon drag scale: ", r_d * pars.H0 / 100.0)
         f = fsigma8 / sigma8
         growth = sigma8 / results.get_sigma8()[-1]
         # alpha_nu = (8.0 / 7.0) * (11.0 / 4.0) ** (4.0 / 3.0)
         beta_phi = (
-            pardict.as_float("beta_phi") if "beta_phi" in parlinear.keys() else 1.0
+            float(parlinear["beta_phi"]) if "beta_phi" in parlinear.keys() else 1.0
         )
         log10Geff = (
-            pardict.as_float("log10Geff") if "log10Geff" in pardict.keys() else -np.inf
+            float(parlinear["log10Geff"])
+            if "log10Geff" in parlinear.keys()
+            else -np.inf
         )
 
         kshift = (
             beta_phi * fitting_formula_interactingneutrinos(kin, log10Geff, r_d)
             - fitting_formula_Baumann19(kin)
         ) / r_d
-        pk_splines = [splrep((kin + kshift), pklin[i + 1]) for i in range(len(zin[1:]))]
+
+        pk_splines = [splrep((kin - kshift), pklin[i + 1]) for i in range(len(zin[1:]))]
 
         pksmooth_splines = [
-            splrep(kin + kshift, self.smooth_hinton2017(kin, pklin[i + 1]))
+            splrep(kin - kshift, self.smooth_hinton2017(kin, pklin[i + 1]))
             for i in range(len(zin[1:]))
         ]
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(kin, pklin[1]/self.smooth_hinton2017(kin, pklin[1]), label="z=0.0", color="black"
+        #          )
+        # from scipy.interpolate import splev
+        # plt.plot(kin, splev(kin, pk_splines[0])/splev(kin, pksmooth_splines[0]), label="z=0.0 (spline)", color="red"
+        #          )
+        # plt.xlabel("k [h/Mpc]")
+        # plt.ylabel("P(k) [h^-3 Mpc^3]")
+        # plt.legend()
+        # plt.show()
 
         return (
             zmid,
@@ -450,7 +465,7 @@ def exponential_damping_geff(
     )
     if log10Geff < -6:
         exponential_damp_modulation = 0.0
-    exponential_damping = np.exp(ks * rs * exponential_damp_modulation)
+    exponential_damping = np.exp(ks * 99.83 * exponential_damp_modulation)
     return exponential_damping
 
 
@@ -511,7 +526,7 @@ def derivk_geff(ks: npt.NDArray, log10Geff: float, rs: float, beta: float):
     firstterm = (
         deriv_amplitude_modulation_geff(ks, log10Geff, rs)
         * fitting_formula_Baumann19(ks)
-        / rs
+        / 99.83
         * beta
         * (exponential_damping_geff(ks, log10Geff, rs))
     )  # A'(Geff) * beta * f(k) / rs * exp(k rs B(Geff))
