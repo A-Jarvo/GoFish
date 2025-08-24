@@ -244,8 +244,8 @@ class CosmoResults:
         hubble = results.hubble_parameter(zmid)
         fsigma8 = results.get_fsigma8()[::-1][1:]
         sigma8 = results.get_sigma8()[::-1][1:]
-        r_d = results.get_derived_params()["rdrag"]
-        print("baryon drag scale: ", r_d * pars.H0 / 100.0)
+        r_d = results.get_derived_params()["rdrag"] * pars.H0 / 100.0
+        # print("baryon drag scale: ", r_d * pars.H0 / 100.0)
         f = fsigma8 / sigma8
         growth = sigma8 / results.get_sigma8()[-1]
         # alpha_nu = (8.0 / 7.0) * (11.0 / 4.0) ** (4.0 / 3.0)
