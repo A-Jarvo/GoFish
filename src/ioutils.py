@@ -195,7 +195,7 @@ class CosmoResults:
         else:
             print("Error: Neither H0 nor h nor theta_s given in config file")
             exit()
-        if "w0_fld" in parlinear.keys():
+        if "w0_fld" in parlinear.keys() and "w0_fld" not in parlinear.keys():
             pars.set_dark_energy(
                 w=float(parlinear["w0_fld"]), dark_energy_model="fluid"
             )
