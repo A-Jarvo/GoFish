@@ -29,20 +29,23 @@ The input file essential information for determining the signal/noise of paramet
 
 ## Config file 
 
+The config file allows the user to specify the fiducial cosmology for the forecasts, and some other settings related to the galaxy survey data. Please see some of the example config files to see how to specify different cosmological parameters. One can also set kmax, kmin for the survey forecasts, and the sky area for the forecasts. It is also possible to specify whether $$\beta_{\phi}$$ for the phase shift should be fixed, 
+
+```beta_phi_fixed = True ```
+
+or likewise $$G_{\mathrm{eff}}$$,
+
+``` geff_fixed = True ```  
+
+If you want to change the phase shift amplitude due to neutrinos, in the configuration file, the user should specify the value of ```beta_phi``` in the config file than changing Neff. Leave Neff = 3.044.
+Forecasts for log10Geff < -6 are likely to be inaccurate since the Fisher information is very small when the rate of change of the power spectrum w.r.t. Geff is effectively zero for these interaction strengths and this may lead to a singular Fisher matrix if ```geff_fixed = False ```. 
+It is ok for it to take a small value if it is a fixed parameter, ``` log10Geff = -12.0 ```. 
+
+The setting ```BAO_only``` changes the forecast information from constraints from the oscillatory signal only, rather than using the full shape power spectrum. The setting ```GoFast``` should be left as True, changing it will lead the code to stop because it is a setting related to some now deprecated code that has not been updated. 
+
 ## Output file 
 
-
-
-Setting beta_phi_fixed = False will allow the phase shift amplitude for standard model neutrinos to vary, setting geff_fixed = False lets parameters controlling the functional form of the phase shift due to varying strength of neutrino self-interactions vary, giving a constraint on Geff where Geff controls the self-interaction strength for a simplified model.
-If you want to change the phase shift due to beta_phi, better off passing a value for beta_phi in the config file than changing Neff to accurately capture this effect. Leave Neff = 3.044.
-Forecasts for log10Geff < -6 are likely to be inaccurate since the Fisher information is very small when the rate of change of the power spectrum w.r.t. Geff is effectively zero for these interaction strengths.
-Ok if log10Geff is a fixed parameter when forecasting for other parameters.
-
-You can specify your cosmology and the properties of your tracers in the configuration file.
-You can take the 'config/test.ini' and 'input_files/DESI_BGS_nbar.txt'  that come with this package
-and modify them to suit your needs.
-
 The code will create a set of two output text files for each redshift: one for covariance and one for
-the mean values (data).
-The order of parameters in both the data and covaraince files is fs8, DA, H.
-DA is in Megaparsecs and H is in Megaparsecs/km/s.
+the mean values (data). The prefix for the names of the input files in specified in the config file. 
+
+
