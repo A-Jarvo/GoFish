@@ -1,5 +1,10 @@
 # GoFish
-A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. Adding ability to forecast phase shift due to free-streaming neutrinos and non-standard neutrino properties. Setting beta_phi_fixed = False will allow the phase shift amplitude for standard model neutrinos to vary, setting geff_fixed = False lets parameters controlling the functional form of the phase shift due to varying strength of neutrino self-interactions vary, giving a constraint on Geff where Geff controls the self-interaction strength for a simplified model.
+A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. 
+
+Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude ```\beta''' due to free-streaming neutrinos and the strength of neutrino self-interactions ```G_{\mathrm{eff}}''' in a universal self-interaction model. 
+
+
+Setting beta_phi_fixed = False will allow the phase shift amplitude for standard model neutrinos to vary, setting geff_fixed = False lets parameters controlling the functional form of the phase shift due to varying strength of neutrino self-interactions vary, giving a constraint on Geff where Geff controls the self-interaction strength for a simplified model.
 If you want to change the phase shift due to beta_phi, better off passing a value for beta_phi in the config file than changing Neff to accurately capture this effect. Leave Neff = 3.044.
 Forecasts for log10Geff < -6 are likely to be inaccurate since the Fisher information is very small when the rate of change of the power spectrum w.r.t. Geff is effectively zero for these interaction strengths.
 Ok if log10Geff is a fixed parameter when forecasting for other parameters.
