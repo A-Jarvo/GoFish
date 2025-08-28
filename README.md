@@ -16,6 +16,11 @@ This code can be run by simply running the Makefile, like 'make install'. This f
 
 # Running the code 
 
+Running the script involves preparation of a config file with the suffix .ini and an input file. The config file specifies settings for the forecasts and the input file contains information about the galaxy survey forecasts are being produced for. 
+
+The script can be run in this manner, where the config file name is used as the first command line argument: 
+
+```uv run GoFish.py ../config/config.ini ```
 
 ## Input file 
 
