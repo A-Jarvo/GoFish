@@ -49,3 +49,14 @@ The code will create a set of two output text files for each redshift: one for c
 the mean values (data). The prefix for the names of the input files in specified in the config file. 
 
 
+# Optional extra for DESI specific forecasts 
+
+I wrote an additional script that will be run in the case one adds this to the ini file:
+
+```do_combined_DESI = True```
+
+This script will output uncertainties on each cosmological parameter from a combined fisher forecast where every parameter is treated separately in each bin (rather than aggregating $$f\sigma_8$$, $$D_A(z)$$ and $$H(z)$$ across each bin). 
+
+This script explicity does this by aggregating information from redshifts of 0-0.4 (BGS), 0.4-0.6 (LRG1), 0.6-1.1 (LRG2), 1.1-1.7 (LRG3/QSOs) and 1.7 - 2.1 (QSOs). The resulting fisher matrix will allow for a covariance matrix for $$f\sigma_8$$, $$D_A(z)$$ and $$H(z)$$ in these 5 bins (and also the optional pahse shift parameters if desired). 
+
+
