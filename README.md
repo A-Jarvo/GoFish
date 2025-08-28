@@ -37,7 +37,7 @@ or likewise $$G_{\mathrm{eff}}$$,
 
 ``` geff_fixed = True ```  
 
-If you want to change the phase shift amplitude due to neutrinos, in the configuration file, the user should specify the value of ```beta_phi``` in the config file than changing Neff. Leave Neff = 3.044.
+If you want to change the phase shift amplitude due to neutrinos, in the configuration file, the user should specify the value of ```beta_phi``` in the config file rather than changing Neff. Leave Neff = 3.044.
 Forecasts for log10Geff < -6 are likely to be inaccurate since the Fisher information is very small when the rate of change of the power spectrum w.r.t. Geff is effectively zero for these interaction strengths and this may lead to a singular Fisher matrix if ```geff_fixed = False ```. 
 It is ok for it to take a small value if it is a fixed parameter, ``` log10Geff = -12.0 ```. 
 
