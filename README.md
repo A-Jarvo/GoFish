@@ -1,7 +1,9 @@
 # GoFish
 A simple and lightweight but user friendly Fisher forecast tool for galaxy clustering surveys with a variable number of tracers. 
 
-Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude $$\beta_{\phi}$$ due to free-streaming neutrinos and the strength of neutrino self-interactions parameterized by $$\log_{10}{(G_{\mathrm{eff}})}$$ in a universal self-interaction model. 
+The code is able to forecast the constraining power on $$f\sigma_8$ (the growth rate $$\times$$ the variance of matter fluctuations on scales of 8/h Mpc), and a measurement of angular diameter distance $$D_A(z)$$ and $$H(z)$$ by interpreting the BAO/AP effect distortion parameters as the ratios $$q_{\parallel} = \frac{H^{\mathrm{fiducial}}(z)}{H(z)}$$ and $$q_{\perp} = \frac{D_A(z)}{D^{\mathrm{fiducial}}_A(z)}$.
+
+Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude $$\beta_{\phi}$$ due to free-streaming neutrinos and the strength of neutrino self-interactions parameterized by $$\log_{10}{(G_{\mathrm{eff}})}$$ in a universal self-interaction model. There is an ability to switch these options off if the user is not interested in these parameters. 
 
 
 # Installation 
