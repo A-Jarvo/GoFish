@@ -8,6 +8,7 @@ Compared to the master branch, I have made several changes to this code, the mai
 
 All power spectra used for forecasts in this code relies on CAMB. 
 
+The code will treat the galaxy bias $$\times \sigma_8$$ as a separate variable in each redshift bin, and likewise $$f\sigma_8$$, $$D_A(z)$$ and $$H(z)$$. The forecasts for the latter three parameters are output to the user in each redshift bin provided in the input data file (this is discussed below in more detail). However, the full covariance matrix in each redshift bin and saved for the user to access later. An output for the covariance obtained from summing the fisher information aggregated over all redshift bins for $$f\sigma_8$$, $$D_A(z)$$ and $$H(z)$$ is also output to the user.  
 
 # Installation 
 
