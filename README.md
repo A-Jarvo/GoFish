@@ -25,6 +25,8 @@ The script can be run in this manner, where the config file name is used as the 
 
 ## Input file 
 
+The input file essential information for determining the signal/noise of parameter constraints. It should contain the number density of objects in each redshift bin (see the example input files in input/). For columns with the name 'dn_dz', the code will interpret the data as the number of objects per dz per square degree. If the column is named 'nbar', it will be interpreted as the number density of objects in units of number * h per mpc (h/megaparsec) cubed $$\times 10^3$$. It is not necessary to provide the survey volume for each redshift bin in this file. It is necessary to provide the galaxy bias in each redshift bin, which can optionally be scaled with the growth rate in each redshift bin (specified in the config file) if it is not done so in the input file.  If multiple columns for dn_dz and galaxy bias are provided in the input file, the code will treat each additional column as data for an additional tracer. In that way, the user can specify to produce forecasts for as many tracers as desired. 
+
 ## Config file 
 
 ## Output file 
