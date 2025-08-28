@@ -1,7 +1,7 @@
 # GoFish
 A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. 
 
-Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude ```\beta''' due to free-streaming neutrinos and the strength of neutrino self-interactions ```G_{\mathrm{eff}}''' in a universal self-interaction model. 
+Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude $$\beta_{\phi}$$ due to free-streaming neutrinos and the strength of neutrino self-interactions $$G_{\mathrm{eff}}$$ in a universal self-interaction model. 
 
 
 Setting beta_phi_fixed = False will allow the phase shift amplitude for standard model neutrinos to vary, setting geff_fixed = False lets parameters controlling the functional form of the phase shift due to varying strength of neutrino self-interactions vary, giving a constraint on Geff where Geff controls the self-interaction strength for a simplified model.
