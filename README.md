@@ -1,5 +1,5 @@
 # GoFish
-A simple and lightweight but user friendly Fisher forecast tool for DESI galaxy clustering. 
+A simple and lightweight but user friendly Fisher forecast tool for galaxy clustering surveys with a variable number of tracers. 
 
 Compared to the master branch, I have made several changes to this code, the main ones being adding ability to forecast constraints on the phase shift amplitude $$\beta_{\phi}$$ due to free-streaming neutrinos and the strength of neutrino self-interactions parameterized by $$\log_{10}{(G_{\mathrm{eff}})}$$ in a universal self-interaction model. 
 
