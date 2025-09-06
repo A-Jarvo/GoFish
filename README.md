@@ -1,3 +1,15 @@
+# Fork Notes
+This is forked from https://github.com/abbew25/GoFish, all credit to Abbe. I have just modified it to constrain w0, wa. I have set it to expect running from the main directery and calling it like uv run src/GoFish.py config/config.ini. This is different from Abbe's.
+
+My code supports:
+
+* Producing a H, Da vs redshift plot with ```uv run src/plot_HDA.py config/config.ini``` with optional ```--rerun``` parameter
+* Producing a covariance matrices for w0, wa for all redshifts and a summed matrix with ```uv run src/constrain_w0wa.py config/config.ini``` with optional ```--rerun``` parameter. Outputs .txt to same dir as supplied in config.
+* Producing a contour plot of w0, wa from output of constrain_w0wa.py with ```uv run draw_ellipses.py output_files/cov_matrix.txt```. Does not yet support ```--rerun```
+* All the above can take in ```help```
+
+I have left the below nearly identical to Abbe's version:
+
 # GoFish
 
 A simple and lightweight but user friendly Fisher forecast tool for galaxy clustering surveys with a variable number of tracers. 
@@ -21,7 +33,7 @@ Running the script involves preparation of a config file with the suffix .ini an
 
 The script can be run in this manner, where the config file name is used as the first command line argument: 
 
-```uv run GoFish.py ../config/config.ini ```
+```uv run src/GoFish.py config/config.ini ```
 
 ## Input file 
 
