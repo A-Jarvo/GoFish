@@ -42,14 +42,16 @@ def main(path) -> None:
     plt.show()
 
 if __name__ == "__main__":
-    try:
-        path = sys.argv[1]
-    except IndexError:
-        raise TypeError("Supply path to covariance matrix.")
     if "help" in sys.argv:
         print("plots confidence ellipses from output files from constrain_wowa.py. Supply path to output file.")
         sys.exit()
+    try:
+        path = sys.argv[1]
+    except IndexError:
+        print("Failed to read path, using default path")
+        path = "output_files/GoFish_DESI_test_w0wa_cov_full.txt"
     if "--rerun" in sys.argv:
-        print("Sorry, does not yet support rerunning automatically. Pleas manually rerun.")
-        sys.exit
+        print("Sorry, does not yet support rerunning automatically. Please manually rerun.")
+        sys.exit()
+
     main(path)
