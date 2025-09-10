@@ -403,15 +403,8 @@ def write_fisher(
         else pardict["outputfile"] + "_dat_agg.txt"
     )
 
-    if beta_phi_fixed and geff_fixed:
-        np.savetxt(cov_filename, cov_inv)
-        np.savetxt(data_filename, parameter_means)
-    elif not beta_phi_fixed and not geff_fixed:
-        np.savetxt(cov_filename, cov_inv)
-        np.savetxt(data_filename, parameter_means)
-    else:
-        np.savetxt(cov_filename, cov_inv)
-        np.savetxt(data_filename, parameter_means)
+    np.savetxt(cov_filename, cov_inv)
+    np.savetxt(data_filename, parameter_means)
 
 
 def fitting_formula_Baumann19(ks: npt.NDArray) -> npt.NDArray:
