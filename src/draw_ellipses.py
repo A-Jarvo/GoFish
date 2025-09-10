@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import sys
 
-def main() -> None:
+def main(path) -> None:
     C = np.loadtxt(path)
     w0_fid, wa_fid = -1.0, 0.0 # fiducial values, change if needed
 
