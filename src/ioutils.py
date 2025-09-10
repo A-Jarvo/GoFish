@@ -8,6 +8,20 @@ class InputData:
     def __init__(self, pardict: ConfigObj):
         df = self.read_nbar(pardict)
 
+        # Limit tracers to only those specified in config
+        if "Tracers" in pardict:
+            all_tracers = ["BGS", "LRG", "ELG", "QSO"]
+            tracers = set(pardict["Tracers"].split())
+            if not tracers.issubset(all_tracers):
+                print(tracers)
+                raise ValueError("A tracer supplied in config is invalid")
+            tracers_to_remove = [tracer for tracer in all_tracers if tracer not in tracers]
+            cols_to_remove = [
+                col for col in df.columns
+                if any(tracer in col for tracer in tracers_to_remove)
+            ] # get any col containing substring tracer
+            df.drop(columns=cols_to_remove, inplace=True)
+
         self.zmin = df[" zmin"].to_numpy()
         self.zmax = df["zmax"].to_numpy()
         self.nz = np.array([df[i] for i in df.keys() if "nz" in i])
@@ -24,8 +38,12 @@ class InputData:
                 1.0e-40  # Set any zero number densities to a small number
             )
 
+        # Remove bins with no tracer data
+        self.remove_empty_starting_bins()
+
         # Sort out any tracers without galaxies in a particular redshift bin
         self.remove_null_tracers()
+
 
     def read_nbar(self, pardict: ConfigObj):
         """Reads redshift edges, number density, and bias from an input file
@@ -92,6 +110,39 @@ class InputData:
         index = np.where(self.nz == 0)
         self.bias[index] = 0.0
         self.nz[index] = 1.0e-30
+
+    def remove_empty_starting_bins(self):
+        """Removes the initial redshift bins with no data in any tracer.
+        Stops once it reaches a bin with nz > 0 for at least one tracer.
+
+        Notes
+        ----
+        GoFish's main function raises an error without this, as though it has logic for empty bins
+        it requires a previous non-empty bin to function correctly.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+
+        if not np.any(self.nz > 0):
+            raise ValueError("All redshift bins are empty. Review input data and selected tracers")
+
+        first_nonempty_index = np.argmax(np.any(self.nz > 0, axis=0))
+
+        self.zmin = self.zmin[first_nonempty_index:]
+        self.zmax = self.zmax[first_nonempty_index:]
+        self.nz   = self.nz[:, first_nonempty_index:]
+        self.bias = self.bias[:, first_nonempty_index:]
+        self.volume = self.volume[first_nonempty_index:] 
+        if self.nbar is not None:
+            self.nbar = self.nbar[:, first_nonempty_index:]
+          
+        
 
 
 # This class contains everything we might need to set up to compute the fisher matrix

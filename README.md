@@ -6,7 +6,10 @@ My code supports:
 * Producing a H, Da vs redshift plot with ```uv run src/plot_HDA.py config/config.ini``` with optional ```--rerun``` parameter
 * Producing a covariance matrices for w0, wa for all redshifts and a summed matrix with ```uv run src/constrain_w0wa.py config/config.ini``` with optional ```--rerun``` parameter. Outputs .txt to same dir as supplied in config.
 * Producing a contour plot of w0, wa from output of constrain_w0wa.py with ```uv run draw_ellipses.py output_files/cov_matrix.txt```. Does not yet support ```--rerun```
-* All the above can take in ```help```
+    * All the above can take in ```help```
+* Limiting tracers to use using config
+    * Done by passing in ```Tracers = 'tracer1 tracer2 ...'``` in config file
+    * Valid tracers are "BGS", "LRG", "ELG", "QSO"
 
 I have left the below nearly identical to Abbe's version:
 
