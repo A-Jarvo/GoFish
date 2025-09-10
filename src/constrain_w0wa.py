@@ -110,16 +110,25 @@ def main(configpath: str, include_fs8: bool):
 
     # easier to use later like this.
     redshift_bins = CosmoResults(pardict, data.zmin, data.zmax).z
-    redshift_bin_indices = range(0, len(redshift_bins))
+    redshift_bin_indices = list(range(0, len(redshift_bins)))
 
     covariance_matrices_obs = []
+    missing_cov_files = []
     for redshift_bin in redshift_bins:
-        cov_matrix = np.loadtxt(
-            output_path + f"_cov_{format(redshift_bin, '.2f')}.txt", dtype=float
-        )  # import to np array
-        covariance_matrices_obs.append(
-            cov_matrix[-2 - int(include_fs8) :, -2 - int(include_fs8) :]
-        )  # append only H, Da sub matrix
+        try:
+            cov_matrix = np.loadtxt(
+                output_path + f"_cov_{format(redshift_bin, '.2f')}.txt", dtype=float
+            )  # import to np array
+            covariance_matrices_obs.append(
+                cov_matrix[-2 - int(include_fs8) :, -2 - int(include_fs8) :]
+            )  # append only H, Da sub matrix
+        except FileNotFoundError: # for some reason no cov matrix for redshift
+            missing_cov_files.append(redshift_bin)
+            
+    for redshift in missing_cov_files:
+        index = np.where(redshift_bins == redshift)
+        np.delete(redshift_bins, index)
+        redshift_bin_indices.pop()
 
     parameters_to_constrain = ["w0_fld", "wa_fld"]  # theoretically can work for any
 
