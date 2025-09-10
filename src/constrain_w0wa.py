@@ -60,9 +60,7 @@ def construct_Jacobians(
     )  # get keys of nested dict.
     # print(derivatives)
 
-    Jacobian_element = lambda parameter, observable, redshift_index: derivatives[
-        parameter
-    ][observable][redshift_index]
+    Jacobian_element = lambda parameter, observable, redshift_index: derivatives[parameter][observable][redshift_index]
     Jacobian_Matrix = lambda redshift_index: np.array(
         [
             [
