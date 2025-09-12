@@ -1,5 +1,5 @@
 # Fork Notes
-This is forked from https://github.com/abbew25/GoFish, all credit to Abbe. I have just modified it to constrain w0, wa. I have set it to expect running from the main directery and calling it like uv run src/GoFish.py config/config.ini. This is different from Abbe's.
+This is forked from https://github.com/abbew25/GoFish, which was originially forked from https://github.com/ladosamushia/GoFish, so all credit to Cullan Howlett and Lado Samushia for the original and Abbe Whitford for her fork. I have modified it mainly to constrain w0, wa. I have set it to expect running from the main directery and calling it like uv run src/GoFish.py config/config.ini. This is different from Abbe's.
 
 My code supports:
 
