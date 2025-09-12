@@ -129,7 +129,7 @@ class InputData:
         None
         """
 
-        if not np.any(self.nz > 0):
+        if np.all(self.nz <= 0):
             raise ValueError("All redshift bins are empty. Review input data and selected tracers")
 
         first_nonempty_index = np.argmax(np.any(self.nz > 0, axis=0))
@@ -587,3 +587,4 @@ def derivk_geff(ks: npt.NDArray, log10Geff: float, rs: float, beta: float):
     derivk_geff = firstterm + secondterm
 
     return derivk_geff
+
