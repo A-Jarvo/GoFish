@@ -1,4 +1,6 @@
 output/
+output_files/*
+!output_files/
 *.txt
 *.png
 *.csv
