@@ -2,6 +2,7 @@ output/
 *.txt
 *.png
 *.csv
+src/test.py
 .DS_Store
 __pycache__/
 abbe_plots/
