@@ -10,6 +10,10 @@ My code supports:
 * Limiting tracers to use using config
     * Done by passing in ```Tracers = 'tracer1 tracer2 ...'``` in config file
     * Valid tracers are "BGS", "LRG", "ELG", "QSO"
+* Altering an input file to change redshift binning
+    * will update and make more easily usable, WIP.
+    * feed in .ini file in same form as ```config/input_file_modification.ini```.
+    * outputs to new file.
 
 I have left the below nearly identical to Abbe's version:
 
