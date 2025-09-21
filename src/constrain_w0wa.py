@@ -10,9 +10,7 @@ def compute_cosmo_derivatives(
     parameter: str, pardict: ConfigObj, data: InputData
 ) -> list[float]:
     observables = ["h", "da", "fs8"] if include_fs8 else ["h", "da"]
-    delta = 0.0001
-    if parameter == "A_s":
-        delta = float("1e-12")
+    delta = 0.001
     pardict_up, pardict_down = copy.deepcopy(pardict), copy.deepcopy(pardict)
     pardict_up[parameter] = float(pardict_up[parameter]) + delta
     pardict_down[parameter] = float(pardict_down[parameter]) - delta
