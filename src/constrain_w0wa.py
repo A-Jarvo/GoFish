@@ -10,7 +10,9 @@ def compute_cosmo_derivatives(
     parameter: str, pardict: ConfigObj, data: InputData
 ) -> list[float]:
     observables = ["h", "da", "fs8"] if include_fs8 else ["h", "da"]
-    delta = 0.01
+    delta = 0.0001
+    if parameter == "A_s":
+        delta = float("1e-12")
     pardict_up, pardict_down = copy.deepcopy(pardict), copy.deepcopy(pardict)
     pardict_up[parameter] = float(pardict_up[parameter]) + delta
     pardict_down[parameter] = float(pardict_down[parameter]) - delta
@@ -130,7 +132,7 @@ def main(configpath: str, include_fs8: bool):
         np.delete(redshift_bins, index)
         redshift_bin_indices.pop()
 
-    parameters_to_constrain = ["w0_fld", "wa_fld"]  # theoretically can work for any
+    parameters_to_constrain = ["w0_fld", "wa_fld", "omega_cdm", "omega_b", "h"]  # theoretically can work for any
 
     derivatives = {
         parameter: compute_cosmo_derivatives(parameter, pardict, data)
@@ -145,6 +147,10 @@ def main(configpath: str, include_fs8: bool):
     # print(Jacobian)
 
     fisher_matrices_obs = [invert_matrix(cov) for cov in covariance_matrices_obs]
+
+    for index in redshift_bin_indices:
+        np.savetxt(output_path + f"_HDa_cov_{format(redshift_bins[index], '.2f')}_.txt", fisher_matrices_obs[index])
+    
     fisher_matrices_para = [
         Jacobians[z_index].T @ fisher_matrices_obs[z_index] @ Jacobians[z_index]
         for z_index in redshift_bin_indices
@@ -163,6 +169,8 @@ def main(configpath: str, include_fs8: bool):
 
     print("Overall covaraince matrix:")
     print(total_cov_para)
+    print("w0wa coraviance matrix:")
+    print(total_cov_para[0:2,0:2])
     for param,index in zip(parameters_to_constrain,range(0,len(parameters_to_constrain))):
         print(
         f"1sigma error for {param}: {np.sqrt(total_cov_para[index][index])}"
