@@ -549,24 +549,32 @@ def compute_inv_cov(
     """
 
     covariance = np.empty((npk, npk))
+    
+    pk_kaiser = kaiser * pk
+    nbar_inv = 1.0 / nbar
 
     # Loop over power spectra of different samples P_12
     for ps1, pair1 in enumerate(combinations_with_replacement(range(npop), 2)):
         n1, n2 = pair1
+        nbar_inv_n1 = nbar_inv[n1]
+        nbar_inv_n2 = nbar_inv[n2]
+        pk_kaiser_n1, pk_kaiser_n2 = pk_kaiser[n1], pk_kaiser[n2]
         # Loop over power spectra of different samples P_34
         for ps2, pair2 in enumerate(combinations_with_replacement(range(npop), 2)):
             n3, n4 = pair2
+            kaiser_n3, kaiser_n4 = kaiser[n3], kaiser[n4]
             # Cov(P_12,P_34)
-            pk13, pk24 = kaiser[n1] * kaiser[n3] * pk, kaiser[n2] * kaiser[n4] * pk
-            pk14, pk23 = kaiser[n1] * kaiser[n4] * pk, kaiser[n2] * kaiser[n3] * pk
+            pk13, pk24 = pk_kaiser_n1 * kaiser_n3, pk_kaiser_n2 * kaiser_n4
+            pk14, pk23 = pk_kaiser_n1 * kaiser_n4, pk_kaiser_n2 * kaiser_n3
             if n1 == n3:
-                pk13 += 1.0 / nbar[n1]
+                pk13 += nbar_inv_n1
             if n1 == n4:
-                pk14 += 1.0 / nbar[n1]
+                pk14 += nbar_inv_n1
             if n2 == n3:
-                pk23 += 1.0 / nbar[n2]
+                pk23 += nbar_inv_n2
             if n2 == n4:
-                pk24 += 1.0 / nbar[n2]
+                pk24 += nbar_inv_n2
+            
             covariance[ps1, ps2] = pk13 * pk24 + pk14 * pk23
 
     # identity = np.eye(npk)
