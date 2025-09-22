@@ -25,7 +25,7 @@ def main(config_path)-> None:
     for tracer_col_name, bias_col_name in zip(tracer_col_names, bias_col_names):
         new_tracer_data = rebin_tracer(old_data, zip(new_z_low, new_z_high), tracer_col_name)
         new_data[tracer_col_name] = new_tracer_data
-        new_data[bias_col_name] = old_data[bias_col_name].iloc[0:len(new_tracer_data)]
+        new_data[bias_col_name] = old_data[bias_col_name].iloc[0]
     new_data.to_csv(f'{new_path}', sep='\t', index=False, header=True)
     print(new_data)
     sys.exit()
@@ -97,9 +97,6 @@ def read_input(path: str)-> tuple[pd.DataFrame, list[float]]:
     return z_mid, z_range, tracer_data, biases
 
 
-    
-    
-    
 def get_tracers(dataframe: pd.DataFrame) -> tuple[list[str], list[float]]:
     # takes in dataframe and returns a list of column names
     # with galaxy data and a list of column names with bias data
