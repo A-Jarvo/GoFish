@@ -10,7 +10,7 @@ def compute_cosmo_derivatives(
     parameter: str, pardict: ConfigObj, data: InputData
 ) -> list[float]:
     observables = ["h", "da", "fs8"] if include_fs8 else ["h", "da"]
-    delta = 0.001
+    delta = 0.01
     pardict_up, pardict_down = copy.deepcopy(pardict), copy.deepcopy(pardict)
     pardict_up[parameter] = float(pardict_up[parameter]) + delta
     pardict_down[parameter] = float(pardict_down[parameter]) - delta
@@ -47,6 +47,7 @@ def invert_matrix(matrix: np.array) -> np.array:
     except np.linalg.LinAlgError:
         # Matrix is not positive definite, just pseudoinvert
         inverse_matrix = np.linalg.pinv(matrix)
+        print("not positive definite")
     return inverse_matrix
 
 
@@ -127,7 +128,7 @@ def main(configpath: str, include_fs8: bool):
             
     for redshift in missing_cov_files:
         index = np.where(redshift_bins == redshift)
-        np.delete(redshift_bins, index)
+        redshift_bins = np.delete(redshift_bins, index)
         redshift_bin_indices.pop()
 
     parameters_to_constrain = ["w0_fld", "wa_fld", "omega_cdm", "omega_b", "h"]  # theoretically can work for any
