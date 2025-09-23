@@ -19,7 +19,7 @@ def compute_cosmo_derivatives(
 
     if "fs8" in observables:
         cosmo_up.fs8 = cosmo_up.f * cosmo_up.sigma8
-        cosmo_down.fs8 = cosmo_up.f * cosmo_down.sigma8
+        cosmo_down.fs8 = cosmo_down.f * cosmo_down.sigma8
 
     derivatives = {
         obs: (np.array(getattr(cosmo_up, obs) - np.array(getattr(cosmo_down, obs))))
