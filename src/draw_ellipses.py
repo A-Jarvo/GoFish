@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import sys
 
-def main(path) -> None:
+def main(path: str, show_fig: bool, title: str, ax: plt.axes, fiducial_values: list[int, int]) -> None:
     C = np.loadtxt(path)
-    w0_fid, wa_fid = -1.0, 0.0 # fiducial values, change if needed
+    C = C[:2,:2]
+    w0_fid, wa_fid = fiducial_values # fiducial values, change if needed
 
     # Eigen-decomposition for ellipse axes
     eigvals, eigvecs = np.linalg.eigh(C)
@@ -17,7 +18,8 @@ def main(path) -> None:
     colors = ["#1f77b4", "#ff7f0e"]
     labels = ["1σ contour", "2σ contour"]
 
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
 
     for chi2, label, color in zip(chi2_vals, labels, colors):
         width, height = 2 * np.sqrt(eigvals * chi2)
@@ -36,10 +38,17 @@ def main(path) -> None:
 
     ax.axvline(w0_fid, color="k", ls="--", lw=1)
     ax.axhline(wa_fid, color="k", ls="--", lw=1)
-    ax.set_xlabel(r"$w_0$")
-    ax.set_ylabel(r"$w_a$")
-    ax.legend()
-    plt.show()
+    if True:
+        ax.set_xlabel(r"$w_0$")
+        ax.set_ylabel(r"$w_a$")
+    if title is not None:
+        ax.set_title(f"${title}$", fontsize=13)
+    ax.tick_params(axis='both', which='major', labelsize=10) 
+    ax.legend(fontsize = 9)
+    ax.add_patch(ell)
+    ax.autoscale_view()
+    if show_fig:
+        plt.show()
 
 if __name__ == "__main__":
     if "help" in sys.argv:
@@ -48,10 +57,13 @@ if __name__ == "__main__":
     try:
         path = sys.argv[1]
     except IndexError:
-        print("Failed to read path, using default path")
-        path = "output_files/GoFish_DESI_test_w0wa_cov_full.txt"
+        raise IndexError("Failed to read path")
+    fiducial_values = [-1.0, 0]
     if "--rerun" in sys.argv:
         print("Sorry, does not yet support rerunning automatically. Please manually rerun.")
+        sys.exit()    
+    if "--default" in sys.argv:
+        print(f"default fiducial values are {fiducial_values}")
         sys.exit()
 
-    main(path)
+    main(path, fiducial_values=fiducial_values)
