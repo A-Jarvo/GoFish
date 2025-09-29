@@ -147,8 +147,9 @@ def main(configpath: str, include_fs8: bool):
 
     fisher_matrices_obs = [invert_matrix(cov) for cov in covariance_matrices_obs]
 
-    for index in redshift_bin_indices:
-        np.savetxt(output_path + f"_HDa_cov_{format(redshift_bins[index], '.2f')}_.txt", fisher_matrices_obs[index])
+    if False:
+        for index in redshift_bin_indices:
+            np.savetxt(output_path + f"_HDa_cov_{format(redshift_bins[index], '.2f')}_.txt", fisher_matrices_obs[index])
     
     fisher_matrices_para = [
         Jacobians[z_index].T @ fisher_matrices_obs[z_index] @ Jacobians[z_index]
@@ -157,13 +158,15 @@ def main(configpath: str, include_fs8: bool):
     total_cov_para = invert_matrix(sum(fisher_matrices_para))
     cov_matrices_para = [invert_matrix(fisher) for fisher in fisher_matrices_para]
 
+    bin_width = min(data.zmax) - min(data.zmin)
+
     for index in redshift_bin_indices:
-        file_name = output_path + f"_w0wa_cov_{format(redshift_bins[index], '.2f')}.txt"
+        file_name = output_path + f"_w0wa_cov_{format(redshift_bins[index], '.2f')}_{bin_width}.txt"
         np.savetxt(
             file_name, cov_matrices_para[index]
         )  # output individual cov matrices
     np.savetxt(
-        output_path + "_w0wa_cov_full.txt", total_cov_para
+        output_path + f"_w0wa_cov_full_{bin_width}.txt", total_cov_para
     )  # output full cov matrix
 
     print("Overall covaraince matrix:")
