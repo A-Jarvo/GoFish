@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import PchipInterpolator
-from scipy.integrate import quad
 import sys
 from configobj import ConfigObj
 from math import ceil
@@ -31,31 +30,12 @@ def main(config_path)-> None:
     sys.exit()
     
 def rebin_tracer(dataframe, new_z_bins, tracer_col_name):
-    new_tracer_data = []
-    for new_z_bin in new_z_bins:
-        total_tracer_data_in_bin = 0
-        for old_index in dataframe.index:
-            old_bin_dataframe = dataframe.iloc[old_index]
-            old_z_bin = (old_bin_dataframe[" zmin"], old_bin_dataframe["zmax"]) # get in same form as new bins
-            overlap = calculate_overlap(old_z_bin, new_z_bin)
-            if overlap > 0:
-                total_tracer_data_in_bin += overlap * old_bin_dataframe[tracer_col_name]
-        new_tracer_data.append(total_tracer_data_in_bin)
-    return new_tracer_data
-
-
-def calculate_overlap(old_interval, new_interval):
-    old_start, old_end = old_interval
-    new_start, new_end = new_interval
-
-    overlap_start = max(old_start, new_start)
-    overlap_end = min(old_end, new_end)
-    overlap_width = max(0, overlap_end - overlap_start)
-    old_width = old_end - old_start
-    return overlap_width / old_width
-    
-
-
+    old_z = (dataframe["zmax"] + dataframe[" zmin"]) / 2
+    old_data = dataframe[tracer_col_name]
+    interpolating_poly = PchipInterpolator(old_z, old_data)
+    new_z_mid = [(z_high+z_low)/2 for z_high, z_low in new_z_bins]
+    new_tracer_data = interpolating_poly(new_z_mid)
+    return [float(int(x)) for x in new_tracer_data]
 
 def get_z(pardict, old_z_max) -> tuple[list[float], list[float], list[float]]:
     # not properly implemented, just harded coded rn
